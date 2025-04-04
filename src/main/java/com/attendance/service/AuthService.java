@@ -70,9 +70,14 @@ public class AuthService {
         // 生成JWT令牌
         String token = jwtTokenProvider.generateToken(authentication);
         
+        // 获取用户信息
+        User user = userRepository.findByUsername(loginDTO.getUsername())
+                .orElseThrow(() -> new ResourceNotFoundException("用户不存在"));
+        
         // 组装结果
         Map<String, Object> result = new HashMap<>();
         result.put("token", token);
+        result.put("user", UserDTO.fromEntity(user)); // 添加用户信息
         
         log.info("用户登录成功: {}", loginDTO.getUsername());
         return result;
