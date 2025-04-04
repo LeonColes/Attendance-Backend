@@ -1,0 +1,93 @@
+# 应用配置 application.yml
+
+spring:
+  application:
+    name: attendance-assistant
+  
+  # 数据库配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/attendance?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  
+  # 添加HTTP编码配置
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+  
+  # Jackson配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    serialization:
+      write-dates-as-timestamps: false
+  
+  # Redis配置
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 10000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+# 应用服务配置
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  tomcat:
+    max-threads: 200
+    min-spare-threads: 10
+
+# JWT配置
+jwt:
+  # 密钥，经过Base64编码，长度足够HS512算法使用（至少64字节/512位）
+  secret: d0IwYwZlQ2UMZ8fYGgQxCnJ0bJKhMgUvHnL4X9p2i5sWe1OoRqB7tVS6aPzNjAyFmDk3T8cEr6LuQfIxVlGbZdCaYpS7vO0nTtHqPrMw
+  # 过期时间，单位毫秒，默认24小时
+  expiration: 86400000
+  refresh-expiration: 604800000 # 7天
+
+# 文件上传配置
+file:
+  upload-dir: ./uploads
+  avatar-dir: ./uploads/avatars
+  max-size: 5MB
+  allowed-types: image/jpeg,image/png,image/gif
+
+# 考勤配置
+attendance:
+  gps-accuracy: 100 # 距离单位：米
+
+# 日志配置
+logging:
+  config: classpath:logback-spring.xml
+  level:
+    root: INFO
+    com.attendance: DEBUG
+    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
+    org.springframework.web.filter.ServletContextRequestLoggingFilter: DEBUG
+    org.springframework.web.servlet.DispatcherServlet: INFO
+    org.springframework.web.servlet.mvc.method.annotation: INFO
