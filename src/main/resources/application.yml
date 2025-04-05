@@ -26,13 +26,28 @@ spring:
   # JPA配置
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create  # 使用create模式让Hibernate创建表结构
     show-sql: true
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQL8Dialect
     open-in-view: false
+  
+  # 数据库初始化配置
+  sql:
+    init:
+      mode: never  # 不使用SQL初始化，让JPA自动创建表结构
+  
+  # 分页配置
+  data:
+    web:
+      pageable:
+        default-page-size: 10
+        max-page-size: 100
+        one-indexed-parameters: false
+        page-parameter: page
+        size-parameter: size
   
   # Jackson配置
   jackson:

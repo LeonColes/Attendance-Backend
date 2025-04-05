@@ -1,630 +1,611 @@
-# 智能考勤系统 API 设计文档
+# 考勤系统API设计文档
 
-## 目录
+## 基础规范
 
-1. [基本信息](#基本信息)
-2. [认证 APIs](#认证-apis)
-3. [用户 APIs](#用户-apis)
-4. [课程与签到管理 APIs](#课程与签到管理-apis)
-5. [签到记录 APIs](#签到记录-apis)
-6. [统计 APIs](#统计-apis)
-7. [业务流程图](#业务流程图)
+### 基础URL
+所有API均以 `/api` 为前缀。
 
-## 基本信息
+### 请求方法
+- **GET**: 获取资源
+- **POST**: 创建资源、执行操作或更新资源
 
-- **Base URL**: `http://localhost:8080/api`
-- **认证方式**: Bearer Token JWT
-- **数据格式**: JSON
-- **请求头要求**:
-  - Content-Type: application/json
-  - Authorization: Bearer {token} (认证接口除外)
-
-## 认证 APIs
-
-| 方法   | URL                | 描述              | 认证要求           |
-|------|------------------|-----------------|-----------------|
-| POST | /auth/register   | 用户注册            | 无               |
-| POST | /auth/login      | 用户登录            | 无               |
-| POST | /auth/refresh    | 刷新访问令牌          | 需要刷新令牌          |
-| POST | /auth/logout     | 登出并使当前令牌失效      | 需要认证            |
-
-### 用户注册
-
-**请求**:
-```bash
-curl -X POST http://localhost:8080/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "student1",
-    "password": "Test@123",
-    "fullName": "学生一",
-    "email": "student1@example.com",
-    "role": "STUDENT"
-  }'
+### 响应格式
+所有API响应均使用JSON格式，包含以下字段：
+```json
+{
+  "code": 200,           // 状态码：200成功，非200表示错误
+  "message": "操作成功",   // 操作结果描述
+  "data": {}             // 响应数据，可能是对象或数组
+}
 ```
 
-**成功响应**:
+### 分页格式
+分页查询返回格式：
 ```json
 {
   "code": 200,
-  "message": "用户注册成功",
+  "message": "查询成功",
   "data": {
-    "id": 1,
-    "username": "student1",
-    "fullName": "学生一",
-    "email": "student1@example.com",
-    "role": "STUDENT",
-    "enabled": true,
-    "createdAt": "2025-04-01T10:00:00",
-    "updatedAt": "2025-04-01T10:00:00"
+    "content": [],        // 当前页数据
+    "totalElements": 100, // 总记录数
+    "totalPages": 10,     // 总页数
+    "size": 10,           // 每页大小
+    "number": 0,          // 当前页码(从0开始)
+    "first": true,        // 是否为第一页
+    "last": false,        // 是否为最后一页
+    "empty": false        // 是否为空结果
   }
 }
 ```
+
+### 分页参数
+所有列表查询支持以下分页参数：
+- `page`: 页码(从0开始)，默认0
+- `size`: 每页大小，默认10，最大100
+
+### 错误码
+- 200: 成功
+- 400: 请求参数错误
+- 401: 未认证
+- 403: 权限不足
+- 404: 资源不存在
+- 409: 资源冲突
+- 500: 服务器内部错误
+
+## 认证API
 
 ### 用户登录
-
-**请求**:
-```bash
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "student1",
-    "password": "Test@123"
-  }'
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "登录成功",
-  "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI...",
-    "tokenType": "Bearer",
-    "userId": 1,
-    "username": "student1",
-    "fullName": "学生一",
-    "role": "STUDENT"
+- **URL**: `/api/auth/login`
+- **方法**: POST
+- **描述**: 登录系统并获取认证令牌
+- **请求体**:
+  ```json
+  {
+    "username": "用户名",
+    "password": "密码"
   }
-}
-```
+  ```
+- **响应**:
+  ```json
+  {
+    "code": 200,
+    "message": "登录成功",
+    "data": {
+      "accessToken": "JWT令牌",
+      "tokenType": "Bearer",
+      "userId": "用户ID",
+      "username": "用户名",
+      "fullName": "用户全名",
+      "role": "用户角色"
+    }
+  }
+  ```
 
-## 用户 APIs
+### 用户注册
+- **URL**: `/api/auth/register`
+- **方法**: POST
+- **描述**: 注册新用户
+- **请求体**:
+  ```json
+  {
+    "username": "用户名",
+    "password": "密码",
+    "fullName": "用户全名",
+    "email": "邮箱",
+    "phone": "手机号",
+    "role": "STUDENT或TEACHER"
+  }
+  ```
+- **响应**:
+  ```json
+  {
+    "code": 200,
+    "message": "注册成功",
+    "data": {
+      "id": "用户ID",
+      "username": "用户名",
+      "fullName": "用户全名",
+      "email": "邮箱",
+      "role": "角色",
+      "enabled": true,
+      "createdAt": "创建时间",
+      "updatedAt": "更新时间"
+    }
+  }
+  ```
 
-| 方法   | URL                | 描述            | 认证要求           |
-|------|------------------|---------------|-----------------|
-| GET  | /users/me        | 获取当前用户信息      | 需要认证            |
-| GET  | /users/{id}      | 获取指定用户信息      | 需要认证, ADMIN或本人  |
-| GET  | /users           | 获取用户列表        | 需要认证, ADMIN/TEACHER |
-| PUT  | /users/{id}      | 更新用户信息        | 需要认证, ADMIN或本人  |
-| PATCH| /users/{id}/password | 修改用户密码    | 需要认证, ADMIN或本人  |
+## 用户API
 
 ### 获取当前用户信息
-
-**请求**:
-```bash
-curl -X GET http://localhost:8080/api/users/me \
-  -H "Authorization: Bearer {{token}}"
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "成功",
-  "data": {
-    "id": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
-    "username": "student1",
-    "fullName": "学生一",
-    "email": "student1@example.com",
-    "role": "STUDENT",
-    "enabled": true,
-    "createdAt": "2025-04-01T10:00:00",
-    "updatedAt": "2025-04-01T10:00:00"
+- **URL**: `/api/users/current`
+- **方法**: GET
+- **描述**: 获取当前登录用户的信息
+- **响应**:
+  ```json
+  {
+    "code": 200,
+    "message": "获取成功",
+    "data": {
+      "id": "用户ID",
+      "username": "用户名",
+      "fullName": "用户全名",
+      "email": "邮箱",
+      "phone": "手机号",
+      "role": "角色",
+      "enabled": true,
+      "createdAt": "创建时间",
+      "updatedAt": "更新时间"
+    }
   }
-}
-```
+  ```
 
-## 课程与签到管理 APIs
+### 获取用户列表
+- **URL**: `/api/users/list`
+- **方法**: GET
+- **描述**: 获取用户列表
+- **权限**: 仅管理员和教师
+- **查询参数**:
+  - `role`(可选): 用户角色，如STUDENT、TEACHER
+  - `keyword`(可选): 搜索关键词，匹配用户名、全名和邮箱
+  - `page`: 页码
+  - `size`: 每页大小
+- **响应**: 分页格式
 
-| 方法   | URL                         | 描述              | 认证要求           |
-|------|----------------------------|-----------------|-----------------|
-| POST | /courses                   | 创建课程或签到任务      | 需要认证，TEACHER/ADMIN |
-| GET  | /courses                   | 获取课程列表         | 需要认证            |
-| GET  | /courses/{id}              | 获取课程或签到任务详情   | 需要认证，课程成员       |
-| PUT  | /courses/{id}              | 更新课程或签到任务信息   | 需要认证，课程创建者/ADMIN |
-| POST | /courses/{id}/members      | 添加课程成员         | 需要认证，课程创建者/ADMIN |
-| GET  | /courses/{id}/members      | 获取课程成员列表       | 需要认证，课程成员       |
-| DELETE | /courses/{id}/members/{userId} | 移除课程成员   | 需要认证，课程创建者/ADMIN |
-| POST | /courses/join/{code}       | 通过邀请码加入课程      | 需要认证            |
-| GET  | /courses/my                | 获取我的课程列表       | 需要认证            |
-| GET  | /courses/{courseId}/checkins | 获取课程下的签到任务列表 | 需要认证，课程成员       |
-| POST | /courses/checkin/{checkinId} | 提交签到          | 需要认证，课程成员       |
-| GET  | /courses/checkin/{checkinId}/code | 获取签到二维码  | 需要认证，任务创建者/ADMIN |
-| POST | /courses/checkin/{checkinId}/end | 手动结束签到任务  | 需要认证，任务创建者/ADMIN |
+### 获取用户详情
+- **URL**: `/api/users/detail`
+- **方法**: GET
+- **描述**: 获取用户详情
+- **查询参数**:
+  - `id`: 用户ID
+- **权限**: 仅允许管理员或用户本人访问
+- **响应**:
+  ```json
+  {
+    "code": 200,
+    "message": "获取成功",
+    "data": {
+      "id": "用户ID",
+      "username": "用户名",
+      "fullName": "用户全名",
+      "email": "邮箱",
+      "phone": "手机号",
+      "role": "角色",
+      "enabled": true,
+      "createdAt": "创建时间",
+      "updatedAt": "更新时间"
+    }
+  }
+  ```
+
+### 更新用户信息
+- **URL**: `/api/users/update`
+- **方法**: POST
+- **描述**: 更新用户信息
+- **权限**: 仅允许管理员或用户本人修改
+- **请求体**:
+  ```json
+  {
+    "id": "用户ID",
+    "fullName": "更新的全名",
+    "email": "更新的邮箱",
+    "phone": "更新的手机号"
+  }
+  ```
+- **响应**: 更新后的用户信息
+
+## 课程API
 
 ### 创建课程
-
-**请求**:
-```bash
-curl -X POST http://localhost:8080/api/courses \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{token}}" \
-  -d '{
-    "name": "Java程序设计",
-    "description": "本课程介绍Java编程基础与应用开发",
-    "type": "COURSE",
-    "startDate": "2025-09-01",
-    "endDate": "2026-01-15"
-  }'
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "课程创建成功",
-  "data": {
-    "id": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
-    "name": "Java程序设计",
-    "description": "本课程介绍Java编程基础与应用开发",
-    "creatorId": 2,
-    "creatorName": "张老师",
-    "code": "XYZ789",
-    "type": "COURSE",
-    "startDate": "2025-09-01",
-    "endDate": "2026-01-15",
-    "status": "ACTIVE",
-    "memberCount": 1,
-    "createdAt": "2025-04-05T14:30:00",
-    "updatedAt": "2025-04-05T14:30:00"
+- **URL**: `/api/courses/create`
+- **方法**: POST
+- **描述**: 创建新课程
+- **权限**: 教师和管理员
+- **请求体**:
+  ```json
+  {
+    "name": "课程名称",
+    "description": "课程描述",
+    "startDate": "开始日期",
+    "endDate": "结束日期"
   }
-}
-```
+  ```
+- **响应**: 创建的课程信息
+
+### 获取课程列表
+- **URL**: `/api/courses/list`
+- **方法**: GET
+- **描述**: 获取课程列表
+- **查询参数**:
+  - `status`(可选): 课程状态，如ACTIVE、ENDED
+  - `keyword`(可选): 搜索关键词，匹配课程名称和描述
+  - `page`: 页码
+  - `size`: 每页大小
+- **响应**: 分页格式的课程列表
+
+### 获取我的课程
+- **URL**: `/api/courses/my-list`
+- **方法**: GET
+- **描述**: 获取当前用户参与的所有课程
+- **查询参数**:
+  - `status`(可选): 课程状态
+  - `page`: 页码
+  - `size`: 每页大小
+- **响应**: 分页格式的课程列表
+
+### 获取课程详情
+- **URL**: `/api/courses/detail`
+- **方法**: GET
+- **描述**: 获取课程详情
+- **查询参数**:
+  - `id`: 课程ID
+- **权限**: 课程成员才可访问
+- **响应**: 课程详情信息
+
+### 更新课程
+- **URL**: `/api/courses/update`
+- **方法**: POST
+- **描述**: 更新课程信息
+- **权限**: 仅课程创建者或管理员
+- **请求体**:
+  ```json
+  {
+    "id": "课程ID",
+    "name": "更新的名称",
+    "description": "更新的描述",
+    "startDate": "更新的开始日期",
+    "endDate": "更新的结束日期",
+    "status": "更新的状态"
+  }
+  ```
+- **响应**: 更新后的课程信息
+
+### 删除课程
+- **URL**: `/api/courses/remove`
+- **方法**: POST
+- **描述**: 逻辑删除课程
+- **权限**: 仅课程创建者或管理员
+- **请求体**:
+  ```json
+  {
+    "id": "课程ID",
+    "deleteReason": "删除原因(可选)"
+  }
+  ```
+- **响应**: 成功消息
+
+## 课程成员API
+
+### 获取课程成员列表
+- **URL**: `/api/courses/members/list`
+- **方法**: GET
+- **描述**: 获取课程成员列表
+- **权限**: 课程成员才可访问
+- **查询参数**:
+  - `courseId`: 课程ID
+  - `role`(可选): 成员角色
+  - `page`: 页码
+  - `size`: 每页大小
+- **响应**: 分页格式的成员列表
+
+### 添加课程成员
+- **URL**: `/api/courses/members/add`
+- **方法**: POST
+- **描述**: 添加课程成员
+- **权限**: 仅课程创建者或助教
+- **请求体**:
+  ```json
+  {
+    "courseId": "课程ID",
+    "userIds": ["用户ID1", "用户ID2", ...],
+    "role": "成员角色(如STUDENT)"
+  }
+  ```
+- **响应**: 添加成功消息和添加的成员列表
+
+### 移除课程成员
+- **URL**: `/api/courses/members/remove`
+- **方法**: POST
+- **描述**: 移除课程成员
+- **权限**: 仅课程创建者或助教
+- **请求体**:
+  ```json
+  {
+    "courseId": "课程ID",
+    "userId": "用户ID",
+    "removeReason": "移除原因(可选)"
+  }
+  ```
+- **响应**: 成功消息
+
+### 加入课程
+- **URL**: `/api/courses/members/join`
+- **方法**: POST
+- **描述**: 通过邀请码加入课程
+- **请求体**:
+  ```json
+  {
+    "code": "课程邀请码",
+    "joinMethod": "加入方式(CODE或QR_CODE)"
+  }
+  ```
+- **响应**: 成功消息和课程信息
+
+## 签到任务API
 
 ### 创建签到任务
-
-**请求**:
-```bash
-curl -X POST http://localhost:8080/api/courses \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{token}}" \
-  -d '{
-    "name": "周三课程签到",
-    "description": "第5周周三课程签到",
-    "type": "CHECKIN",
-    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
-    "checkinStartTime": "2025-04-10T15:00:00",
-    "checkinEndTime": "2025-04-10T15:15:00",
-    "checkinType": "QR_CODE"
-  }'
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "签到任务创建成功",
-  "data": {
-    "id": "def456",
-    "name": "周三课程签到",
-    "description": "第5周周三课程签到",
-    "creatorId": 2,
-    "creatorUsername": "teacher1",
-    "creatorFullName": "张老师",
-    "type": "CHECKIN",
-    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
-    "parentCourseName": "Java程序设计",
-    "checkinStartTime": "2025-04-10T15:00:00",
-    "checkinEndTime": "2025-04-10T15:15:00",
-    "checkinType": "QR_CODE",
-    "verifyParams": "{\"code\":\"f47ac10b-58cc-4372-a567-0e02b2c3d479\"}",
-    "status": "CREATED",
-    "createdAt": "2025-04-05T14:30:00",
-    "updatedAt": "2025-04-05T14:30:00"
+- **URL**: `/api/courses/tasks/create`
+- **方法**: POST
+- **描述**: 创建课程签到任务
+- **权限**: 仅课程创建者或助教
+- **请求体**:
+  ```json
+  {
+    "parentCourseId": "所属课程ID",
+    "name": "签到任务名称",
+    "description": "签到任务描述",
+    "startTime": "签到开始时间",
+    "endTime": "签到结束时间",
+    "checkinType": "签到类型(QR_CODE/LOCATION/WIFI/MANUAL)",
+    "verifyParams": {
+      // 根据签到类型不同而不同
+      // QR_CODE: {}
+      // LOCATION: {"latitude": 纬度, "longitude": 经度, "radius": 半径}
+      // WIFI: {"ssid": "WiFi名称", "bssid": "MAC地址"}
+    }
   }
-}
-```
+  ```
+- **响应**: 创建的签到任务信息
 
-### 获取课程的签到任务列表
+### 获取签到任务列表
+- **URL**: `/api/courses/tasks/list`
+- **方法**: GET
+- **描述**: 获取课程的签到任务列表
+- **权限**: 课程成员才可访问
+- **查询参数**:
+  - `courseId`: 课程ID
+  - `status`(可选): 任务状态
+  - `page`: 页码
+  - `size`: 每页大小
+- **响应**: 分页格式的签到任务列表
 
-**请求**:
-```bash
-curl -X GET http://localhost:8080/api/courses/b3184f7a-d4fe-4050-ad09-a5091cdbb847/checkins \
-  -H "Authorization: Bearer {{token}}"
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "成功",
-  "data": [
-    {
-      "id": "def456",
-      "name": "周三课程签到",
-      "description": "第5周周三课程签到",
-      "creatorId": 2,
-      "creatorUsername": "teacher1",
-      "type": "CHECKIN",
-      "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
-      "parentCourseName": "Java程序设计",
-      "checkinStartTime": "2025-04-10T15:00:00",
-      "checkinEndTime": "2025-04-10T15:15:00",
-      "checkinType": "QR_CODE",
-      "status": "ACTIVE",
-      "createdAt": "2025-04-05T14:30:00"
-    },
-    // 更多签到任务...
-  ]
-}
-```
-
-### 获取签到二维码
-
-**请求**:
-```bash
-curl -X GET http://localhost:8080/api/courses/checkin/def456/code \
-  -H "Authorization: Bearer {{token}}"
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "生成签到码成功",
-  "data": {
-    "checkinId": "def456",
-    "code": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-    "timestamp": 1712356200000
+### 更新签到任务
+- **URL**: `/api/courses/tasks/update`
+- **方法**: POST
+- **描述**: 更新签到任务
+- **权限**: 仅任务创建者或课程管理员
+- **请求体**:
+  ```json
+  {
+    "id": "签到任务ID",
+    "name": "更新的名称",
+    "description": "更新的描述",
+    "startTime": "更新的开始时间",
+    "endTime": "更新的结束时间",
+    "status": "更新的状态"
   }
-}
-```
+  ```
+- **响应**: 更新后的签到任务信息
+
+### 删除签到任务
+- **URL**: `/api/courses/tasks/remove`
+- **方法**: POST
+- **描述**: 逻辑删除签到任务
+- **权限**: 仅任务创建者或课程管理员
+- **请求体**:
+  ```json
+  {
+    "id": "签到任务ID",
+    "deleteReason": "删除原因(可选)"
+  }
+  ```
+- **响应**: 成功消息
+
+## 签到记录API
 
 ### 提交签到
-
-**请求**:
-```bash
-curl -X POST http://localhost:8080/api/courses/checkin/def456 \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{token}}" \
-  -d '{
-    "verifyData": "{\"code\":\"f47ac10b-58cc-4372-a567-0e02b2c3d479\"}",
-    "location": "113.9432,22.5194",
-    "device": "iPhone 15 Pro"
-  }'
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "签到成功",
-  "data": {
-    "checkinId": "def456",
-    "success": true,
-    "timestamp": 1712356290000
-  }
-}
-```
-
-### 位置签到创建
-
-**请求**:
-```bash
-curl -X POST http://localhost:8080/api/courses \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{token}}" \
-  -d '{
-    "name": "位置签到示例",
-    "description": "基于位置的签到任务",
-    "type": "CHECKIN",
-    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
-    "checkinStartTime": "2025-04-12T10:00:00",
-    "checkinEndTime": "2025-04-12T10:30:00",
-    "checkinType": "LOCATION",
-    "verifyParams": "{\"latitude\":22.5194,\"longitude\":113.9432,\"radius\":100}"
-  }'
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "签到任务创建成功",
-  "data": {
-    "id": "ghi789",
-    "name": "位置签到示例",
-    "description": "基于位置的签到任务",
-    "type": "CHECKIN",
-    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
-    "parentCourseName": "Java程序设计",
-    "checkinStartTime": "2025-04-12T10:00:00",
-    "checkinEndTime": "2025-04-12T10:30:00",
-    "checkinType": "LOCATION",
-    "verifyParams": "{\"latitude\":22.5194,\"longitude\":113.9432,\"radius\":100}",
-    "status": "CREATED",
-    "createdAt": "2025-04-05T15:20:00",
-    "updatedAt": "2025-04-05T15:20:00"
-  }
-}
-```
-
-### 位置签到提交
-
-**请求**:
-```bash
-curl -X POST http://localhost:8080/api/courses/checkin/ghi789 \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{token}}" \
-  -d '{
-    "verifyData": "{\"latitude\":22.5190,\"longitude\":113.9428}",
-    "location": "113.9428,22.5190",
-    "device": "iPhone 15 Pro"
-  }'
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "签到成功",
-  "data": {
-    "checkinId": "ghi789",
-    "success": true,
-    "timestamp": 1712403610000
-  }
-}
-```
-
-### WiFi签到创建
-
-**请求**:
-```bash
-curl -X POST http://localhost:8080/api/courses \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{token}}" \
-  -d '{
-    "name": "WiFi签到示例",
-    "description": "基于WiFi连接的签到任务",
-    "type": "CHECKIN",
-    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
-    "checkinStartTime": "2025-04-15T14:00:00",
-    "checkinEndTime": "2025-04-15T14:30:00",
-    "checkinType": "WIFI",
-    "verifyParams": "{\"ssid\":\"University_WiFi\",\"bssid\":\"00:11:22:33:44:55\"}"
-  }'
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "签到任务创建成功",
-  "data": {
-    "id": "jkl012",
-    "name": "WiFi签到示例",
-    "description": "基于WiFi连接的签到任务",
-    "type": "CHECKIN",
-    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
-    "parentCourseName": "Java程序设计",
-    "checkinStartTime": "2025-04-15T14:00:00",
-    "checkinEndTime": "2025-04-15T14:30:00",
-    "checkinType": "WIFI",
-    "verifyParams": "{\"ssid\":\"University_WiFi\",\"bssid\":\"00:11:22:33:44:55\"}",
-    "status": "CREATED",
-    "createdAt": "2025-04-05T16:10:00",
-    "updatedAt": "2025-04-05T16:10:00"
-  }
-}
-```
-
-### WiFi签到提交
-
-**请求**:
-```bash
-curl -X POST http://localhost:8080/api/courses/checkin/jkl012 \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{token}}" \
-  -d '{
-    "verifyData": "{\"ssid\":\"University_WiFi\",\"bssid\":\"00:11:22:33:44:55\"}",
-    "location": "113.9440,22.5188",
-    "device": "iPhone 15 Pro"
-  }'
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "签到成功",
-  "data": {
-    "checkinId": "jkl012",
-    "success": true,
-    "timestamp": 1713262810000
-  }
-}
-```
-
-## 签到记录 APIs
-
-| 方法   | URL                         | 描述              | 认证要求           |
-|------|----------------------------|-----------------|-----------------|
-| GET  | /records/{id}              | 获取签到记录详情        | 需要认证，ADMIN或记录关联用户 |
-| GET  | /records/task/{taskId}     | 获取任务所有签到记录      | 需要认证，ADMIN或任务创建者 |
-| GET  | /records/user/{userId}     | 获取用户所有签到记录      | 需要认证，ADMIN/TEACHER或本人 |
-| GET  | /records/course/{courseId} | 获取课程所有签到记录      | 需要认证，课程创建者/ADMIN |
-| POST | /records/check-in/qrcode   | 提交二维码签到         | 需要认证，课程成员 |
-
-### 提交二维码签到
-
-**请求**:
-```bash
-curl -X POST http://localhost:8080/api/records/check-in/qrcode \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{token}}" \
-  -d '{
-    "taskId": "12a45b67-89c0-12d3-e456-78fg901hij2k",
-    "code": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-    "location": "113.9432,22.5194",
-    "device": "iPhone 15 Pro"
-  }'
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "签到成功",
-  "data": {
-    "id": "23b56c78-90d1-23e4-f567-89gh012jkl3m",
-    "userId": 3,
-    "username": "student1",
-    "userFullName": "李学生",
-    "taskId": "12a45b67-89c0-12d3-e456-78fg901hij2k",
-    "taskTitle": "程序设计课程签到",
-    "courseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
-    "courseName": "Java程序设计",
-    "status": "NORMAL",
-    "checkInTime": "2025-04-10T15:01:30",
-    "location": "113.9432,22.5194",
-    "device": "iPhone 15 Pro",
-    "verifyMethod": "QR_CODE",
-    "createdAt": "2025-04-10T15:01:30",
-    "updatedAt": "2025-04-10T15:01:30"
-  }
-}
-```
-
-### 获取课程所有签到记录
-
-**请求**:
-```bash
-curl -X GET http://localhost:8080/api/records/course/b3184f7a-d4fe-4050-ad09-a5091cdbb847 \
-  -H "Authorization: Bearer {{token}}"
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "成功",
-  "data": [
-    {
-      "id": "23b56c78-90d1-23e4-f567-89gh012jkl3m",
-      "userId": 3,
-      "username": "student1",
-      "userFullName": "李学生",
-      "taskId": "12a45b67-89c0-12d3-e456-78fg901hij2k",
-      "taskTitle": "程序设计课程签到",
-      "status": "NORMAL",
-      "checkInTime": "2025-04-10T15:01:30"
+- **URL**: `/api/attendance/records/create`
+- **方法**: POST
+- **描述**: 学生提交签到
+- **请求体**:
+  ```json
+  {
+    "courseId": "签到任务ID",
+    "location": {
+      "latitude": 纬度,
+      "longitude": 经度
     },
-    // 更多记录...
-  ]
-}
-```
+    "device": "设备信息",
+    "verifyMethod": "签到方式(QR_CODE/LOCATION/WIFI)",
+    "verifyData": "签到验证数据"
+  }
+  ```
+- **响应**: 签到结果
 
-## 统计 APIs
+### 获取签到记录列表
+- **URL**: `/api/attendance/records/list`
+- **方法**: GET
+- **描述**: 获取签到记录
+- **权限**: 教师可查看所有记录，学生只能查看自己的记录
+- **查询参数**:
+  - `courseId`(可选): 签到任务ID
+  - `parentCourseId`(可选): 所属课程ID
+  - `userId`(可选): 用户ID
+  - `status`(可选): 签到状态
+  - `startDate`(可选): 签到日期起始
+  - `endDate`(可选): 签到日期结束
+  - `page`: 页码
+  - `size`: 每页大小
+- **响应**: 分页格式的签到记录列表
 
-| 方法   | URL                                  | 描述              | 认证要求           |
-|------|--------------------------------------|-----------------|-----------------|
-| GET  | /stats/task/{taskId}                 | 获取任务签到统计        | 需要认证，ADMIN或任务创建者 |
-| GET  | /stats/course/{courseId}             | 获取课程签到统计        | 需要认证，课程创建者/ADMIN |
-| GET  | /stats/user/{userId}/course/{courseId} | 获取用户在课程中的签到统计  | 需要认证，ADMIN/TEACHER或本人 |
+### 手动签到
+- **URL**: `/api/attendance/records/manual-create`
+- **方法**: POST
+- **描述**: 教师为学生手动添加签到记录
+- **权限**: 仅课程创建者或助教
+- **请求体**:
+  ```json
+  {
+    "courseId": "签到任务ID",
+    "userId": "学生用户ID",
+    "status": "签到状态(NORMAL/LATE/LEAVE)"
+  }
+  ```
+- **响应**: 创建的签到记录
+
+### 更新签到记录
+- **URL**: `/api/attendance/records/update`
+- **方法**: POST
+- **描述**: 更新签到记录（如修改状态）
+- **权限**: 仅课程创建者或助教
+- **请求体**:
+  ```json
+  {
+    "id": "签到记录ID",
+    "status": "更新的状态",
+    "comment": "备注信息(可选)"
+  }
+  ```
+- **响应**: 更新后的签到记录
+
+## 统计API
 
 ### 获取课程签到统计
-
-**请求**:
-```bash
-curl -X GET http://localhost:8080/api/stats/course/b3184f7a-d4fe-4050-ad09-a5091cdbb847 \
-  -H "Authorization: Bearer {{token}}"
-```
-
-**成功响应**:
-```json
-{
-  "code": 200,
-  "message": "成功",
-  "data": {
-    "courseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
-    "courseName": "Java程序设计",
-    "totalTasks": 15,
-    "totalStudents": 45,
-    "averageAttendance": 92.5,
-    "taskStats": [
-      {
-        "taskId": "12a45b67-89c0-12d3-e456-78fg901hij2k",
-        "taskTitle": "第5周周三课程签到",
-        "totalRecords": 42,
-        "normalCount": 38,
-        "lateCount": 4,
-        "absentCount": 3,
-        "attendanceRate": 93.33
+- **URL**: `/api/statistics/course`
+- **方法**: GET
+- **描述**: 获取课程签到统计信息
+- **权限**: 仅课程创建者或助教
+- **查询参数**:
+  - `courseId`: 课程ID
+- **响应**:
+  ```json
+  {
+    "code": 200,
+    "message": "获取成功",
+    "data": {
+      "courseId": "课程ID",
+      "courseName": "课程名称",
+      "totalStudents": 30,
+      "totalTasks": 10,
+      "attendanceRate": 0.95,
+      "statusDistribution": {
+        "NORMAL": 280,
+        "LATE": 12,
+        "ABSENT": 8
       },
-      // 更多任务统计...
-    ],
-    "studentStats": [
-      {
-        "userId": 3,
-        "username": "student1",
-        "fullName": "李学生",
-        "totalTasks": 15,
-        "attendedCount": 14,
-        "lateCount": 1,
-        "absentCount": 0,
-        "attendanceRate": 93.33
-      },
-      // 更多学生统计...
-    ]
+      "taskStatistics": [
+        {
+          "taskId": "任务ID",
+          "taskName": "任务名称",
+          "date": "日期",
+          "normalCount": 28,
+          "lateCount": 1,
+          "absentCount": 1,
+          "attendanceRate": 0.97
+        }
+      ]
+    }
   }
-}
+  ```
+
+### 获取学生签到统计
+- **URL**: `/api/statistics/student`
+- **方法**: GET
+- **描述**: 获取学生签到统计信息
+- **查询参数**:
+  - `courseId`: 课程ID
+  - `userId`: 学生ID (如不提供，则获取当前用户统计)
+- **响应**:
+  ```json
+  {
+    "code": 200,
+    "message": "获取成功",
+    "data": {
+      "userId": "学生ID",
+      "userName": "学生姓名",
+      "courseId": "课程ID",
+      "courseName": "课程名称",
+      "totalTasks": 10,
+      "attendanceRate": 0.9,
+      "normalCount": 8,
+      "lateCount": 1,
+      "absentCount": 1,
+      "records": [
+        {
+          "taskId": "任务ID",
+          "taskName": "任务名称",
+          "date": "日期",
+          "status": "签到状态",
+          "checkInTime": "签到时间"
+        }
+      ]
+    }
+  }
+  ```
+
+## 流程图
+
+### 用户认证流程
+```mermaid
+sequenceDiagram
+    participant 客户端
+    participant 认证服务
+    participant JWT服务
+    participant 用户服务
+    
+    客户端->>认证服务: 登录请求(用户名/密码)
+    认证服务->>用户服务: 验证用户凭证
+    用户服务-->>认证服务: 验证结果
+    认证服务->>JWT服务: 生成JWT令牌
+    JWT服务-->>认证服务: 返回令牌
+    认证服务-->>客户端: 返回认证结果和令牌
+    
+    客户端->>认证服务: 请求受保护资源(带令牌)
+    认证服务->>JWT服务: 验证令牌
+    JWT服务-->>认证服务: 验证结果
+    认证服务-->>客户端: 返回请求的资源
 ```
 
-## 业务流程图
-
-### 课程与签到流程
-
-```
-┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-│    老师创建课程   │────▶│  学生加入课程   │────▶│   课程群组形成   │
-└───────┬───────┘     └───────────────┘     └───────┬───────┘
-        │                                           │
-        │                                           ▼
-        │                                  ┌───────────────┐
-        └─────────────────────────────────▶│  老师创建签到任务  │
-                                          └───────┬───────┘
-                                                  │
-                                                  ▼
-        ┌───────────────┐                 ┌───────────────┐
-        │  学生查看课程任务  │◀───────────────│  任务推送给课程成员 │
-        └───────┬───────┘                 └───────────────┘
-                │
-                ▼
-        ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-        │  学生扫码进行签到  │────▶│  系统验证签到信息  │────▶│  记录签到结果   │
-        └───────────────┘     └───────────────┘     └───────┬───────┘
-                                                            │
-                                                            ▼
-        ┌───────────────┐                           ┌───────────────┐
-        │  老师查看签到统计  │◀──────────────────────────│  生成课程统计数据  │
-        └───────────────┘                           └───────────────┘
+### 签到流程
+```mermaid
+sequenceDiagram
+    participant 学生客户端
+    participant 教师客户端
+    participant 签到服务
+    participant 课程服务
+    
+    教师客户端->>课程服务: 创建签到任务
+    课程服务-->>教师客户端: 返回签到任务信息(含二维码或位置)
+    
+    教师客户端->>学生客户端: 分享签到方式(展示二维码等)
+    学生客户端->>签到服务: 提交签到(扫码/位置/WiFi)
+    签到服务->>课程服务: 验证签到有效性
+    课程服务-->>签到服务: 验证结果
+    签到服务-->>学生客户端: 返回签到结果
+    
+    教师客户端->>签到服务: 获取签到统计
+    签到服务-->>教师客户端: 返回签到统计结果
 ```
 
-### 二维码签到详细流程
-
-```
-┌───────────────┐     ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-│  老师创建签到任务  │────▶│ 系统生成唯一签到码 │────▶│ 前端渲染二维码   │────▶│   展示给学生     │
-└───────────────┘     └───────────────┘     └───────────────┘     └───────┬───────┘
-                                                                          │
-                                                                          ▼
-┌───────────────┐     ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-│  记录签到并返回结果 │◀────│  系统验证签到码   │◀────│ 发送签到信息到服务器 │◀────│  学生扫描二维码   │
-└───────┬───────┘     └───────────────┘     └───────────────┘     └───────────────┘
-        │
-        ▼
-┌───────────────┐     ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-│  实时更新签到状态  │────▶│  汇总课程签到数据  │────▶│  生成签到报表    │────▶│  老师查看统计结果  │
-└───────────────┘     └───────────────┘     └───────────────┘     └───────────────┘
+### 课程管理流程
+```mermaid
+sequenceDiagram
+    participant 教师客户端
+    participant 学生客户端
+    participant 课程服务
+    participant 用户服务
+    
+    教师客户端->>课程服务: 创建课程
+    课程服务-->>教师客户端: 返回课程信息(含邀请码)
+    
+    教师客户端->>学生客户端: 分享课程邀请码
+    学生客户端->>课程服务: 加入课程(使用邀请码)
+    课程服务->>用户服务: 验证用户
+    用户服务-->>课程服务: 用户信息
+    课程服务-->>学生客户端: 加入结果
+    
+    教师客户端->>课程服务: 创建签到任务
+    课程服务-->>教师客户端: 返回任务信息
+    
+    学生客户端->>课程服务: 提交签到
+    课程服务-->>学生客户端: 签到结果
 ``` 
