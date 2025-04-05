@@ -6,7 +6,7 @@ spring:
   
   # 数据库配置
   datasource:
-    url: jdbc:mysql://localhost:3306/attendance?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    url: jdbc:mysql://localhost:3306/attendance?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -26,7 +26,7 @@ spring:
   # JPA配置
   jpa:
     hibernate:
-      ddl-auto: create  # 使用create模式让Hibernate创建表结构
+      ddl-auto: none  # 禁用Hibernate自动创建表
     show-sql: true
     properties:
       hibernate:
@@ -37,7 +37,10 @@ spring:
   # 数据库初始化配置
   sql:
     init:
-      mode: never  # 不使用SQL初始化，让JPA自动创建表结构
+      mode: always  # 启用SQL初始化
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
+      continue-on-error: false
   
   # 分页配置
   data:

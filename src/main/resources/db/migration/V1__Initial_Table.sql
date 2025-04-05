@@ -70,6 +70,6 @@ CREATE TABLE IF NOT EXISTS records (
     UNIQUE KEY unique_user_course (user_id, course_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 创建默认管理员账户
-INSERT INTO users (id, username, password, full_name, email, role, enabled)
-VALUES ('admin-uuid', 'admin', '$argon2id$v=19$m=65536,t=3,p=4$QUJDREVGMTIzNDU2$2hYE9vMqZfGCunYODIGPx2ias9D4fYWvzsN0YSG9a78', 'System Administrator', 'admin@example.com', 'ADMIN', TRUE);
+-- 基础测试数据
+INSERT INTO users (id, username, password, full_name, email, role, enabled, created_at, updated_at) 
+VALUES ('admin-uuid', 'admin', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', 'System Administrator', 'admin@example.com', 'ADMIN', TRUE, NOW(), NOW());
