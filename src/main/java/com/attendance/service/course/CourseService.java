@@ -113,6 +113,16 @@ public interface CourseService {
     int getCourseMemberCount(String courseId);
     
     /**
+     * 移除课程成员
+     * 
+     * @param courseId 课程ID
+     * @param userId 用户ID
+     * @param reason 移除原因(可选)
+     * @return 是否成功
+     */
+    boolean removeCourseMember(String courseId, String userId, String reason);
+    
+    /**
      * 提交签到
      *
      * @param checkinId 签到任务ID

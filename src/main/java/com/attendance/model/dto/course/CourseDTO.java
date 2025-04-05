@@ -110,6 +110,11 @@ public class CourseDTO {
     private String parentCourseName;
     
     /**
+     * 签到状态 (学生查看课程列表时显示)
+     */
+    private String attendanceStatus;
+    
+    /**
      * 创建时间
      */
     private LocalDateTime createdAt;

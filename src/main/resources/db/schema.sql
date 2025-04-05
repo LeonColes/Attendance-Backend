@@ -36,12 +36,9 @@ CREATE TABLE IF NOT EXISTS courses (
     parent_course_id VARCHAR(36) NULL COMMENT '父课程ID（仅当type=CHECKIN时有值）',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    FOREIGN KEY (creator_id) REFERENCES users(id)
+    FOREIGN KEY (creator_id) REFERENCES users(id),
+    FOREIGN KEY (parent_course_id) REFERENCES courses(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- 添加课程表自引用外键
-ALTER TABLE courses ADD CONSTRAINT fk_courses_parent 
-FOREIGN KEY (parent_course_id) REFERENCES courses(id);
 
 -- 创建课程-用户关联表
 CREATE TABLE IF NOT EXISTS course_users (

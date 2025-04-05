@@ -42,9 +42,9 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
         } else if (authException instanceof InsufficientAuthenticationException) {
             String msg = authException.getMessage();
             if (msg != null && msg.contains("expired")) {
-                apiResponse = ApiResponse.error(statusCode, "登录已过期，请重新登录");
+                apiResponse = ApiResponse.error(statusCode, "Token已过期，请重新登录");
             } else {
-                apiResponse = ApiResponse.error(statusCode, "请先登录");
+                apiResponse = ApiResponse.error(statusCode, "Token无效");
             }
         } else {
             apiResponse = ApiResponse.error(statusCode, "认证失败: " + authException.getMessage());

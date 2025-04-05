@@ -16,7 +16,7 @@ import java.util.Optional;
  * 课程安全服务实现类
  * 处理与课程相关的权限检查
  */
-@Service
+@Service("courseSecurityService")
 @RequiredArgsConstructor
 @Slf4j
 public class CourseSecurityServiceImpl implements CourseSecurityService {

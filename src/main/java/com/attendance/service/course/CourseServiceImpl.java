@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
+import java.util.Comparator;
 
 /**
  * 课程/签到任务服务实现类
@@ -96,12 +97,51 @@ public class CourseServiceImpl implements CourseService {
         joinedCourses.removeAll(createdCourses);
         createdCourses.addAll(joinedCourses);
         
+        // 检查用户角色是否为学生
+        boolean isStudent = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_" + SystemConstants.UserRole.STUDENT));
+            
         return createdCourses.stream()
             .map(course -> {
                 User creator = userRepository.findById(course.getCreatorId())
                     .orElse(null);
                 CourseDTO dto = convertToDTO(course, creator);
                 dto.setMemberCount((int) courseUserRepository.countByCourseIdAndActiveTrue(course.getId()));
+                
+                // 如果是学生，为其添加签到状态信息
+                if (isStudent) {
+                    // 获取最新的签到任务
+                    List<Course> activeTasks = courseRepository.findByParentCourseIdAndTypeAndStatus(
+                        course.getId(), 
+                        SystemConstants.CourseType.CHECKIN,
+                        SystemConstants.TaskStatus.ACTIVE
+                    );
+                    
+                    if (!activeTasks.isEmpty()) {
+                        // 按创建时间排序，获取最新的签到任务
+                        Course latestTask = activeTasks.stream()
+                            .sorted(Comparator.comparing(Course::getCreatedAt).reversed())
+                            .findFirst()
+                            .orElse(null);
+                            
+                        if (latestTask != null) {
+                            // 检查用户是否已签到
+                            boolean hasCheckedIn = recordRepository.findByUserIdAndCourseId(
+                                currentUser.getId(), latestTask.getId()).isPresent();
+                                
+                            if (hasCheckedIn) {
+                                dto.setAttendanceStatus("已签到");
+                            } else {
+                                dto.setAttendanceStatus("未签到");
+                            }
+                        } else {
+                            dto.setAttendanceStatus("暂无签到");
+                        }
+                    } else {
+                        dto.setAttendanceStatus("暂无签到");
+                    }
+                }
+                
                 return dto;
             })
             .collect(Collectors.toList());
@@ -464,6 +504,38 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public int getCourseMemberCount(String courseId) {
         return (int) courseUserRepository.countByCourseIdAndActiveTrue(courseId);
+    }
+    
+    @Override
+    public boolean removeCourseMember(String courseId, String userId, String reason) {
+        log.info("移除课程成员: courseId={}, userId={}, reason={}", courseId, userId, reason);
+        
+        // 检查课程是否存在
+        Course course = courseRepository.findById(courseId)
+            .orElseThrow(() -> new IllegalArgumentException("课程不存在: " + courseId));
+        
+        // 检查用户是否存在
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("用户不存在: " + userId));
+        
+        // 检查用户是否是课程成员
+        CourseUser courseUser = courseUserRepository.findByCourseIdAndUserId(courseId, userId)
+            .orElseThrow(() -> new IllegalArgumentException("用户不是课程成员"));
+        
+        // 不能移除课程创建者
+        if (course.getCreatorId().equals(userId)) {
+            throw new IllegalArgumentException("不能移除课程创建者");
+        }
+        
+        // 移除课程成员
+        courseUserRepository.delete(courseUser);
+        
+        // 记录日志(如果有需要)
+        if (reason != null && !reason.trim().isEmpty()) {
+            log.info("移除课程成员原因: {}", reason);
+        }
+        
+        return true;
     }
     
     @Override

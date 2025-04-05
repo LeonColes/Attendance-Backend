@@ -65,6 +65,16 @@ public interface CourseRepository extends JpaRepository<Course, String> {
     List<Course> findByParentCourseIdAndType(String parentCourseId, String type);
     
     /**
+     * 查找特定课程下指定状态的签到任务
+     * 
+     * @param parentCourseId 父课程ID
+     * @param type 类型 (CHECKIN)
+     * @param status 状态
+     * @return 签到任务列表
+     */
+    List<Course> findByParentCourseIdAndTypeAndStatus(String parentCourseId, String type, String status);
+    
+    /**
      * 查找当前正在进行的签到任务
      * (开始时间早于当前时间，结束时间晚于当前时间)
      * 

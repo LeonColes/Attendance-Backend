@@ -16,7 +16,7 @@ import java.util.List;
  * 用户控制器
  */
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/users")
 @RequiredArgsConstructor
 @Slf4j
 public class UserController {
@@ -28,7 +28,7 @@ public class UserController {
      * 
      * @return 用户信息
      */
-    @GetMapping("/me")
+    @GetMapping("/current")
     public ApiResponse<UserDTO> getCurrentUser() {
         UserDTO userDTO = userService.getCurrentUser();
         return ApiResponse.success(userDTO);

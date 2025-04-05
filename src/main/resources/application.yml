@@ -37,9 +37,8 @@ spring:
   # 数据库初始化配置
   sql:
     init:
-      mode: always  # 启用SQL初始化
+      mode: never  # 禁用SQL初始化
       schema-locations: classpath:db/schema.sql
-      data-locations: classpath:db/data.sql
       continue-on-error: false
   
   # 分页配置

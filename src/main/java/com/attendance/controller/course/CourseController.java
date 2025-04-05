@@ -1,11 +1,15 @@
 package com.attendance.controller.course;
 
 import com.attendance.common.constants.SystemConstants;
+import com.attendance.common.exception.BusinessException;
 import com.attendance.common.model.ApiResponse;
 import com.attendance.model.dto.course.CourseDTO;
 import com.attendance.model.dto.course.CourseUserDTO;
 import com.attendance.model.dto.course.CreateCourseRequest;
+import com.attendance.model.dto.course.CreateAttendanceRequest;
+import com.attendance.model.dto.user.UserDTO;
 import com.attendance.service.course.CourseService;
+import com.attendance.service.user.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -18,76 +22,71 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 课程/签到任务控制器
+ * 课程控制器
  */
 @RestController
-@RequestMapping("/api/courses")
+@RequestMapping("/courses")
 @RequiredArgsConstructor
 @Slf4j
 public class CourseController {
 
     private final CourseService courseService;
+    private final UserService userService;
     
     /**
-     * 创建课程/签到任务
+     * 创建课程
      * 
      * @param request 创建请求
-     * @return 创建的课程/签到任务
+     * @return 创建的课程
      */
-    @PostMapping
+    @PostMapping("/create")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     public ApiResponse<CourseDTO> createCourse(@Valid @RequestBody CreateCourseRequest request) {
-        log.info("创建课程/签到任务请求: {}", request);
+        log.info("创建课程请求: {}", request);
         
-        CourseDTO courseDTO;
-        
-        // 根据类型区分处理逻辑
-        if (SystemConstants.CourseType.COURSE.equals(request.getType())) {
-            courseDTO = courseService.createCourse(
-                request.getName(),
-                request.getDescription(),
-                request.getStartDate(),
-                request.getEndDate()
-            );
-            return ApiResponse.success("课程创建成功", courseDTO);
-        } else if (SystemConstants.CourseType.CHECKIN.equals(request.getType())) {
-            courseDTO = courseService.createCheckinTask(
-                request.getParentCourseId(),
-                request.getName(),
-                request.getDescription(),
-                request.getCheckinStartTime(),
-                request.getCheckinEndTime(),
-                request.getCheckinType(),
-                request.getVerifyParams()
-            );
-            return ApiResponse.success("签到任务创建成功", courseDTO);
-        } else {
-            return ApiResponse.error("不支持的类型: " + request.getType());
-        }
+        CourseDTO courseDTO = courseService.createCourse(
+            request.getName(),
+            request.getDescription(),
+            request.getStartDate(),
+            request.getEndDate()
+        );
+        return ApiResponse.success("课程创建成功", courseDTO);
     }
     
     /**
-     * 获取课程/签到任务详情
+     * 创建签到任务
      * 
-     * @param id 课程/签到任务ID
-     * @return 课程/签到任务信息
+     * @param request 创建签到请求
+     * @return 创建的签到任务
      */
-    @GetMapping("/{id}")
-    public ApiResponse<CourseDTO> getCourse(@PathVariable String id) {
-        log.info("获取课程/签到任务详情: {}", id);
+    @PostMapping("/attendance/create")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ApiResponse<CourseDTO> createAttendance(@Valid @RequestBody CreateAttendanceRequest request) {
+        log.info("创建签到任务请求: {}", request);
+        
+        CourseDTO courseDTO = courseService.createCheckinTask(
+            request.getCourseId(),
+            request.getTitle(),
+            request.getDescription(),
+            request.getStartTime(),
+            request.getEndTime(),
+            request.getCheckInType(),
+            request.getVerifyParams()
+        );
+        return ApiResponse.success("签到任务创建成功", courseDTO);
+    }
+    
+    /**
+     * 获取课程详情
+     * 
+     * @param id 课程ID
+     * @return 课程信息
+     */
+    @GetMapping("/detail")
+    public ApiResponse<CourseDTO> getCourse(@RequestParam String id) {
+        log.info("获取课程详情: {}", id);
         CourseDTO courseDTO = courseService.getCourse(id);
         return ApiResponse.success(courseDTO);
-    }
-    
-    /**
-     * 获取所有课程 - 废弃，改为使用 getMyCourses
-     * 
-     * @return 课程列表
-     */
-    @Deprecated
-    @GetMapping
-    public ApiResponse<List<CourseDTO>> getAllCourses() {
-        return getMyCourses();
     }
     
     /**
@@ -95,9 +94,9 @@ public class CourseController {
      * 
      * @return 课程列表
      */
-    @GetMapping("/my")
+    @GetMapping("/list")
     public ApiResponse<List<CourseDTO>> getMyCourses() {
-        log.info("获取我的课程");
+        log.info("获取我的课程列表");
         List<CourseDTO> courses = courseService.getMyCourses();
         return ApiResponse.success(courses);
     }
@@ -121,59 +120,75 @@ public class CourseController {
      * @param code 邀请码
      * @return 加入结果
      */
-    @PostMapping("/join/{code}")
-    public ApiResponse<CourseUserDTO> joinCourseByCode(@PathVariable String code) {
+    @PostMapping("/members/join")
+    public ApiResponse<CourseUserDTO> joinCourseByCode(@RequestParam String code) {
         log.info("通过邀请码加入课程: {}", code);
         CourseUserDTO courseUserDTO = courseService.joinCourseByCode(code);
         return ApiResponse.success("成功加入课程", courseUserDTO);
     }
     
     /**
-     * 添加课程成员
+     * 获取课程成员列表
      * 
      * @param courseId 课程ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 成员列表
+     */
+    @GetMapping("/members/list")
+    public ApiResponse<List<UserDTO>> getCourseMembers(
+            @RequestParam String courseId,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "10") int size) {
+        log.info("获取课程成员列表: courseId={}, page={}, size={}", courseId, page, size);
+        List<UserDTO> users = userService.getCourseUsers(courseId);
+        return ApiResponse.success(users);
+    }
+    
+    /**
+     * 添加课程成员
+     * 
      * @param request 添加成员请求
      * @return 添加结果
      */
-    @PostMapping("/{courseId}/members")
-    @PreAuthorize("@courseSecurityService.isCourseCreator(#courseId) or hasRole('ADMIN')")
-    public ApiResponse<AddMembersResponse> addCourseMembers(
-            @PathVariable String courseId,
-            @Valid @RequestBody AddMembersRequest request) {
-        log.info("添加课程成员: 课程ID={}, 请求={}", courseId, request);
+    @PostMapping("/members/add")
+    @PreAuthorize("@courseSecurityService.isCourseCreator(#request.courseId) or hasRole('ADMIN')")
+    public ApiResponse<AddMembersResponse> addCourseMembers(@Valid @RequestBody AddMembersRequest request) {
+        log.info("添加课程成员: 请求={}", request);
         
-        int successCount = courseService.addCourseMembers(courseId, request.getUserIds(), request.getRole());
+        int successCount = courseService.addCourseMembers(
+            request.getCourseId(), 
+            request.getUserIds(), 
+            request.getRole()
+        );
         
         AddMembersResponse response = new AddMembersResponse();
         response.setSuccessful(successCount);
         response.setFailed(request.getUserIds().size() - successCount);
-        response.setNewMemberCount(courseService.getCourseMemberCount(courseId));
+        response.setNewMemberCount(courseService.getCourseMemberCount(request.getCourseId()));
         
         return ApiResponse.success(String.format("成功添加%d名成员", successCount), response);
     }
     
     /**
-     * 提交签到
+     * 学生提交签到
      * 
-     * @param checkinId 签到任务ID
      * @param request 签到请求
      * @return 签到结果
      */
-    @PostMapping("/checkin/{checkinId}")
-    public ApiResponse<CheckinResponse> submitCheckin(
-            @PathVariable String checkinId,
-            @Valid @RequestBody SubmitCheckinRequest request) {
-        log.info("提交签到: 任务ID={}, 请求={}", checkinId, request);
+    @PostMapping("/attendance/signin")
+    public ApiResponse<CheckinResponse> submitCheckin(@Valid @RequestBody SubmitCheckinRequest request) {
+        log.info("提交签到: 请求={}", request);
         
         boolean success = courseService.submitCheckin(
-            checkinId,
+            request.getTaskId(),
             request.getVerifyData(),
             request.getLocation(),
             request.getDevice()
         );
         
         CheckinResponse response = new CheckinResponse();
-        response.setCheckinId(checkinId);
+        response.setCheckinId(request.getTaskId());
         response.setSuccess(success);
         response.setTimestamp(System.currentTimeMillis());
         
@@ -186,9 +201,9 @@ public class CourseController {
      * @param checkinId 签到任务ID
      * @return 签到码
      */
-    @GetMapping("/checkin/{checkinId}/code")
+    @GetMapping("/attendance/code")
     @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
-    public ApiResponse<CheckinCodeResponse> generateCheckinCode(@PathVariable String checkinId) {
+    public ApiResponse<CheckinCodeResponse> generateCheckinCode(@RequestParam String checkinId) {
         log.info("生成签到二维码: 任务ID={}", checkinId);
         
         String checkinCode = courseService.generateCheckinCode(checkinId);
@@ -207,13 +222,51 @@ public class CourseController {
      * @param checkinId 签到任务ID
      * @return 结果
      */
-    @PostMapping("/checkin/{checkinId}/end")
+    @PostMapping("/attendance/end")
     @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
-    public ApiResponse<CourseDTO> endCheckinTask(@PathVariable String checkinId) {
+    public ApiResponse<CourseDTO> endCheckinTask(@RequestParam String checkinId) {
         log.info("结束签到任务: 任务ID={}", checkinId);
         
         CourseDTO courseDTO = courseService.updateCourseStatus(checkinId, SystemConstants.TaskStatus.ENDED);
         return ApiResponse.success("签到任务已结束", courseDTO);
+    }
+    
+    /**
+     * 移除课程成员
+     * 
+     * @param request 移除成员请求
+     * @return 结果
+     */
+    @PostMapping("/members/remove")
+    @PreAuthorize("@courseSecurityService.isCourseCreator(#request.courseId) or hasRole('ADMIN')")
+    public ApiResponse<String> removeCourseMembers(@Valid @RequestBody RemoveMemberRequest request) {
+        log.info("移除课程成员: 请求={}", request);
+        
+        boolean success = courseService.removeCourseMember(request.getCourseId(), request.getUserId(), request.getReason());
+        
+        return ApiResponse.success(success ? "成功移除成员" : "移除成员失败");
+    }
+    
+    /**
+     * 获取课程邀请二维码链接
+     * 
+     * @param courseId 课程ID
+     * @return 邀请链接(用于生成二维码)
+     */
+    @GetMapping("/qrcode")
+    @PreAuthorize("@courseSecurityService.isCourseCreator(#courseId) or hasRole('ADMIN')")
+    public ApiResponse<String> generateCourseQRCode(@RequestParam String courseId) {
+        log.info("生成课程邀请二维码: 课程ID={}", courseId);
+        
+        CourseDTO course = courseService.getCourse(courseId);
+        if (course == null || !SystemConstants.CourseType.COURSE.equals(course.getType())) {
+            throw new BusinessException("课程不存在");
+        }
+        
+        // 生成邀请链接，前端可基于此链接生成二维码
+        String inviteUrl = "attendance://join?code=" + course.getCode();
+        
+        return ApiResponse.success("生成课程邀请二维码成功", inviteUrl);
     }
     
     // ========== 请求/响应数据类 ==========
@@ -223,6 +276,12 @@ public class CourseController {
      */
     @Data
     public static class AddMembersRequest {
+        /**
+         * 课程ID
+         */
+        @NotBlank(message = "课程ID不能为空")
+        private String courseId;
+        
         /**
          * 用户ID列表
          */
@@ -252,18 +311,47 @@ public class CourseController {
         private int failed;
         
         /**
-         * 新的成员总数
+         * 当前成员总数
          */
         private int newMemberCount;
     }
     
     /**
-     * 签到请求
+     * 移除成员请求
+     */
+    @Data
+    public static class RemoveMemberRequest {
+        /**
+         * 课程ID
+         */
+        @NotBlank(message = "课程ID不能为空")
+        private String courseId;
+        
+        /**
+         * 用户ID
+         */
+        @NotBlank(message = "用户ID不能为空")
+        private String userId;
+        
+        /**
+         * 移除原因(可选)
+         */
+        private String reason;
+    }
+    
+    /**
+     * 提交签到请求
      */
     @Data
     public static class SubmitCheckinRequest {
         /**
-         * 验证数据 (根据签到类型不同，结构不同)
+         * 签到任务ID
+         */
+        @NotBlank(message = "签到任务ID不能为空")
+        private String taskId;
+        
+        /**
+         * 签到验证数据
          */
         private String verifyData;
         
@@ -276,6 +364,12 @@ public class CourseController {
          * 设备信息
          */
         private String device;
+        
+        /**
+         * 签到方式
+         */
+        @NotBlank(message = "签到方式不能为空")
+        private String verifyMethod;
     }
     
     /**
