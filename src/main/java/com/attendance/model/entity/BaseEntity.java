@@ -1,31 +1,34 @@
 package com.attendance.model.entity;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.Id;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
-import jakarta.persistence.PrePersist;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.util.UUID;
+import java.time.LocalDateTime;
 
 /**
- * 基础实体类
- * 提供通用的ID字段和自动生成ID的功能
+ * 实体基类，包含共同字段
  */
+@Data
 @MappedSuperclass
-@Getter
-@Setter
+@EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity {
     
-    @Id
-    @Column(length = 36)
-    private String id;
+    /**
+     * 创建时间
+     */
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
     
-    @PrePersist
-    protected void onCreate() {
-        if (id == null) {
-            id = UUID.randomUUID().toString();
-        }
-    }
+    /**
+     * 更新时间
+     */
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 } 

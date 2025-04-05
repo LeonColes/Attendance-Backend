@@ -2,10 +2,9 @@ package com.attendance.model.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.GenericGenerator;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -13,115 +12,90 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 /**
- * 考勤记录实体类
- * 记录用户的签到签退信息
+ * 签到记录实体类
  */
 @Data
-@EqualsAndHashCode(callSuper=false)
-@Builder
+@Entity
+@Table(name = "records")
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "attendance_records")
 @EntityListeners(AuditingEntityListener.class)
-public class Record extends BaseEntity {
+public class Record {
 
     /**
-     * 签到用户
+     * 记录ID (UUID)
      */
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Id
+    @GeneratedValue(generator = "uuid2")
+    @GenericGenerator(name = "uuid2", strategy = "uuid2")
+    @Column(name = "id", columnDefinition = "VARCHAR(36)")
+    private String id;
+
+    /**
+     * 用户ID
+     */
+    @Column(name = "user_id", nullable = false)
+    private String userId;
+
+    /**
+     * 签到任务ID (关联Course表，type=CHECKIN的记录)
+     */
+    @Column(name = "course_id", nullable = false)
+    private String courseId;
     
     /**
-     * 关联的任务
+     * 所属课程ID (任务所属的课程ID)
      */
-    @ManyToOne
-    @JoinColumn(name = "task_id", nullable = false)
-    private Task task;
-    
+    @Column(name = "parent_course_id")
+    private String parentCourseId;
+
+    /**
+     * 签到状态 (NORMAL, LATE, ABSENT)
+     */
+    @Column(nullable = false, length = 20)
+    private String status;
+
     /**
      * 签到时间
      */
     @Column(name = "check_in_time")
     private LocalDateTime checkInTime;
-    
+
     /**
-     * 签到位置
+     * 签到位置 (经纬度JSON格式)
      */
-    @Column(name = "check_in_location", length = 255)
-    private String checkInLocation;
-    
-    /**
-     * 签退时间
-     */
-    @Column(name = "check_out_time")
-    private LocalDateTime checkOutTime;
-    
-    /**
-     * 签退位置
-     */
-    @Column(name = "check_out_location", length = 255)
-    private String checkOutLocation;
-    
-    /**
-     * 签到类型
-     */
-    @Enumerated(EnumType.STRING)
-    @Column(name = "check_in_type", nullable = false)
-    private Task.CheckInType checkInType;
-    
-    /**
-     * 签到状态
-     */
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    @Builder.Default
-    private RecordStatus status = RecordStatus.PENDING;
-    
-    /**
-     * IP地址
-     */
-    @Column(length = 50)
-    private String ipAddress;
-    
+    @Column(length = 255)
+    private String location;
+
     /**
      * 设备信息
      */
     @Column(length = 255)
-    private String deviceInfo;
-    
+    private String device;
+
     /**
-     * 备注
+     * 验证方式 (QR_CODE, LOCATION, WIFI, MANUAL)
      */
-    @Column(length = 500)
-    private String remark;
-    
+    @Column(name = "verify_method", length = 20)
+    private String verifyMethod;
+
+    /**
+     * 验证数据 (根据验证方式不同而不同)
+     */
+    @Column(name = "verify_data", columnDefinition = "TEXT")
+    private String verifyData;
+
     /**
      * 创建时间
      */
     @CreatedDate
-    @Column(nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    
+
     /**
      * 更新时间
      */
     @LastModifiedDate
-    @Column(nullable = false)
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-    
-    /**
-     * 签到状态枚举
-     */
-    public enum RecordStatus {
-        PENDING,     // 待签到
-        NORMAL,      // 正常
-        LATE,        // 迟到
-        EARLY_LEAVE, // 早退
-        ABSENT,      // 缺席
-        LEAVE,       // 请假
-        APPROVED,    // 已批准（异常情况批准）
-        REJECTED     // 已拒绝（异常情况拒绝）
-    }
 } 

@@ -6,13 +6,14 @@ spring:
   
   # 数据库配置
   datasource:
-    url: jdbc:mysql://localhost:3306/attendance?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
+    url: jdbc:mysql://localhost:3306/attendance?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
+      idle-timeout: 60000
       connection-timeout: 30000
   
   # 添加HTTP编码配置
@@ -29,8 +30,9 @@ spring:
     show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+    open-in-view: false
   
   # Jackson配置
   jackson:
@@ -40,18 +42,17 @@ spring:
       write-dates-as-timestamps: false
   
   # Redis配置
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      database: 0
-      timeout: 10000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
-          max-wait: -1ms
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    timeout: 10000
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1
+        max-idle: 8
+        min-idle: 0
 
 # 应用服务配置
 server:
@@ -65,7 +66,7 @@ server:
 # JWT配置
 jwt:
   # 密钥，经过Base64编码，长度足够HS512算法使用（至少64字节/512位）
-  secret: d0IwYwZlQ2UMZ8fYGgQxCnJ0bJKhMgUvHnL4X9p2i5sWe1OoRqB7tVS6aPzNjAyFmDk3T8cEr6LuQfIxVlGbZdCaYpS7vO0nTtHqPrMw
+  secret: D9F8E7C6B5A4932187A6B5C4D3E2F1A0B9C8D7E6F5G4H3I2J1K0L9M8N7O6P5
   # 过期时间，单位毫秒，默认24小时
   expiration: 86400000
   refresh-expiration: 604800000 # 7天
@@ -83,11 +84,33 @@ attendance:
 
 # 日志配置
 logging:
-  config: classpath:logback-spring.xml
   level:
     root: INFO
     com.attendance: DEBUG
-    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
-    org.springframework.web.filter.ServletContextRequestLoggingFilter: DEBUG
-    org.springframework.web.servlet.DispatcherServlet: INFO
-    org.springframework.web.servlet.mvc.method.annotation: INFO
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    com.attendance.common.config.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/attendance.log
+
+# 应用配置
+app:
+  cors:
+    allowed-origins: "*"
+    allowed-methods: "*"
+    allowed-headers: "*"
+    exposed-headers: "Authorization"
+    allow-credentials: true
+    max-age: 3600
+  security:
+    password-strength:
+      min-length: 8
+      require-upper: true
+      require-lower: true
+      require-digit: true
+      require-special: true
