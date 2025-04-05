@@ -54,6 +54,24 @@ public class User {
      */
     @Column(length = 100)
     private String email;
+    
+    /**
+     * 电话
+     */
+    @Column(length = 20)
+    private String phone;
+
+    /**
+     * 头像URL
+     */
+    @Column(name = "avatar_url", length = 255)
+    private String avatarUrl;
+    
+    /**
+     * 个性签名
+     */
+    @Column(name = "bio", length = 500)
+    private String bio;
 
     /**
      * 角色 (ROLE_STUDENT, ROLE_TEACHER, ROLE_ADMIN)

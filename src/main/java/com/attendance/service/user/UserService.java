@@ -1,6 +1,7 @@
 package com.attendance.service.user;
 
 import com.attendance.model.dto.user.UserDTO;
+import com.attendance.model.dto.user.UpdateUserRequest;
 
 import java.util.List;
 
@@ -30,4 +31,20 @@ public interface UserService {
      * @return 用户列表
      */
     List<UserDTO> getAllUsers();
+    
+    /**
+     * 更新当前用户信息
+     * 
+     * @param request 更新请求
+     * @return 更新后的用户信息
+     */
+    UserDTO updateCurrentUser(UpdateUserRequest request);
+    
+    /**
+     * 获取课程用户列表
+     * 
+     * @param courseId 课程ID
+     * @return 用户列表
+     */
+    List<UserDTO> getCourseUsers(String courseId);
 } 

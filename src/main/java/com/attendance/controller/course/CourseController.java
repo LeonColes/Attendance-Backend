@@ -80,19 +80,18 @@ public class CourseController {
     }
     
     /**
-     * 获取所有课程
+     * 获取所有课程 - 废弃，改为使用 getMyCourses
      * 
      * @return 课程列表
      */
+    @Deprecated
     @GetMapping
     public ApiResponse<List<CourseDTO>> getAllCourses() {
-        log.info("获取所有课程");
-        List<CourseDTO> courses = courseService.getAllCourses();
-        return ApiResponse.success(courses);
+        return getMyCourses();
     }
     
     /**
-     * 获取用户所有课程
+     * 获取用户所有课程（老师只能看自己创建的，学生只能看自己加入的）
      * 
      * @return 课程列表
      */

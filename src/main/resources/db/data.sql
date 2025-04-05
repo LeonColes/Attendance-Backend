@@ -1,29 +1,29 @@
 -- 管理员用户
 INSERT INTO users (id, username, password, full_name, email, role, enabled, created_at, updated_at)
-VALUES ('00000000-0000-4000-a000-000000000001', 'admin', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', 'System Administrator', 'admin@example.com', 'ADMIN', TRUE, NOW(), NOW());
+VALUES ('00000000-0000-4000-a000-000000000001', 'admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', 'System Administrator', 'admin@example.com', 'ADMIN', TRUE, NOW(), NOW());
 
 -- 教师用户 (3名)
 INSERT INTO users (id, username, password, full_name, email, phone, role, enabled, created_at, updated_at)
 VALUES 
-('10000000-0000-4000-a000-000000000000', 'teacher', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '李老师', 'teacher1@example.com', '13800000001', 'TEACHER', TRUE, NOW(), NOW()),
-('10000000-0000-4000-a000-000000000001', 'teacher1', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '李老师', 'teacher1@example.com', '13800000001', 'TEACHER', TRUE, NOW(), NOW()),
-('10000000-0000-4000-a000-000000000002', 'teacher2', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '王老师', 'teacher2@example.com', '13800000002', 'TEACHER', TRUE, NOW(), NOW()),
-('10000000-0000-4000-a000-000000000003', 'teacher3', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '张老师', 'teacher3@example.com', '13800000003', 'TEACHER', TRUE, NOW(), NOW());
+('10000000-0000-4000-a000-000000000000', 'teacher', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '李老师', 'teacher@example.com', '13800000000', 'TEACHER', TRUE, NOW(), NOW()),
+('10000000-0000-4000-a000-000000000001', 'teacher1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '李老师', 'teacher1@example.com', '13800000001', 'TEACHER', TRUE, NOW(), NOW()),
+('10000000-0000-4000-a000-000000000002', 'teacher2', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '王老师', 'teacher2@example.com', '13800000002', 'TEACHER', TRUE, NOW(), NOW()),
+('10000000-0000-4000-a000-000000000003', 'teacher3', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '张老师', 'teacher3@example.com', '13800000003', 'TEACHER', TRUE, NOW(), NOW());
 
 -- 学生用户 (10名)
 INSERT INTO users (id, username, password, full_name, email, phone, role, enabled, created_at, updated_at)
 VALUES 
-('20000000-0000-4000-a000-000000000000', 'student', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '张同学', 'student1@example.com', '13900000001', 'STUDENT', TRUE, NOW(), NOW()),
-('20000000-0000-4000-a000-000000000001', 'student1', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '张同学', 'student1@example.com', '13900000001', 'STUDENT', TRUE, NOW(), NOW()),
-('20000000-0000-4000-a000-000000000002', 'student2', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '王同学', 'student2@example.com', '13900000002', 'STUDENT', TRUE, NOW(), NOW()),
-('20000000-0000-4000-a000-000000000003', 'student3', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '刘同学', 'student3@example.com', '13900000003', 'STUDENT', TRUE, NOW(), NOW()),
-('20000000-0000-4000-a000-000000000004', 'student4', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '赵同学', 'student4@example.com', '13900000004', 'STUDENT', TRUE, NOW(), NOW()),
-('20000000-0000-4000-a000-000000000005', 'student5', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '陈同学', 'student5@example.com', '13900000005', 'STUDENT', TRUE, NOW(), NOW()),
-('20000000-0000-4000-a000-000000000006', 'student6', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '杨同学', 'student6@example.com', '13900000006', 'STUDENT', TRUE, NOW(), NOW()),
-('20000000-0000-4000-a000-000000000007', 'student7', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '黄同学', 'student7@example.com', '13900000007', 'STUDENT', TRUE, NOW(), NOW()),
-('20000000-0000-4000-a000-000000000008', 'student8', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '周同学', 'student8@example.com', '13900000008', 'STUDENT', TRUE, NOW(), NOW()),
-('20000000-0000-4000-a000-000000000009', 'student9', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '吴同学', 'student9@example.com', '13900000009', 'STUDENT', TRUE, NOW(), NOW()),
-('20000000-0000-4000-a000-000000000010', 'student10', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZ.kY4jKY0hxAEEIFU6aG16bvt1m', '郑同学', 'student10@example.com', '13900000010', 'STUDENT', TRUE, NOW(), NOW());
+('20000000-0000-4000-a000-000000000000', 'student', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '张同学', 'student@example.com', '13900000000', 'STUDENT', TRUE, NOW(), NOW()),
+('20000000-0000-4000-a000-000000000001', 'student1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '张同学', 'student1@example.com', '13900000001', 'STUDENT', TRUE, NOW(), NOW()),
+('20000000-0000-4000-a000-000000000002', 'student2', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '王同学', 'student2@example.com', '13900000002', 'STUDENT', TRUE, NOW(), NOW()),
+('20000000-0000-4000-a000-000000000003', 'student3', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '刘同学', 'student3@example.com', '13900000003', 'STUDENT', TRUE, NOW(), NOW()),
+('20000000-0000-4000-a000-000000000004', 'student4', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '赵同学', 'student4@example.com', '13900000004', 'STUDENT', TRUE, NOW(), NOW()),
+('20000000-0000-4000-a000-000000000005', 'student5', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '陈同学', 'student5@example.com', '13900000005', 'STUDENT', TRUE, NOW(), NOW()),
+('20000000-0000-4000-a000-000000000006', 'student6', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '杨同学', 'student6@example.com', '13900000006', 'STUDENT', TRUE, NOW(), NOW()),
+('20000000-0000-4000-a000-000000000007', 'student7', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '黄同学', 'student7@example.com', '13900000007', 'STUDENT', TRUE, NOW(), NOW()),
+('20000000-0000-4000-a000-000000000008', 'student8', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '周同学', 'student8@example.com', '13900000008', 'STUDENT', TRUE, NOW(), NOW()),
+('20000000-0000-4000-a000-000000000009', 'student9', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '吴同学', 'student9@example.com', '13900000009', 'STUDENT', TRUE, NOW(), NOW()),
+('20000000-0000-4000-a000-000000000010', 'student10', '$2a$10$N.zmdr9k7uOCQb376NoUnuTBpkTmGKf4FpanGhbyudmje9nVwkfNq', '郑同学', 'student10@example.com', '13900000010', 'STUDENT', TRUE, NOW(), NOW());
 
 -- 课程 (李老师的课程)
 INSERT INTO courses (id, name, description, creator_id, code, type, status, start_date, end_date, created_at, updated_at)

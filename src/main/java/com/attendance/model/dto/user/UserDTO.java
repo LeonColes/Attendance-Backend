@@ -37,6 +37,21 @@ public class UserDTO {
     private String email;
     
     /**
+     * 电话
+     */
+    private String phone;
+    
+    /**
+     * 头像URL
+     */
+    private String avatarUrl;
+    
+    /**
+     * 个性签名
+     */
+    private String bio;
+    
+    /**
      * 角色
      */
     private String role;

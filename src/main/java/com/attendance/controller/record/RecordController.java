@@ -17,7 +17,7 @@ import java.util.List;
  * 签到记录控制器
  */
 @RestController
-@RequestMapping("/api/records")
+@RequestMapping("/records")
 @RequiredArgsConstructor
 @Slf4j
 public class RecordController {
