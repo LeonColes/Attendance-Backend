@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -36,11 +38,6 @@ public class JwtTokenProvider {
      * 从令牌中提取用户名
      */
     public String getUsernameFromToken(String token) {
-        // 如果是固定token，返回固定用户名
-        if ("{{token}}".equals(token)) {
-            return "fixed_user"; // 返回一个固定用户名，而不是引用不存在的变量
-        }
-        
         return getClaimFromToken(token, Claims::getSubject);
     }
     
@@ -82,14 +79,39 @@ public class JwtTokenProvider {
      * 生成令牌
      */
     public String generateToken(Authentication authentication) {
-        return "{{token}}";
+        String username = authentication.getName();
+        Map<String, Object> claims = new HashMap<>();
+        
+        // 可以添加其他声明，如角色信息
+        if (authentication.getAuthorities() != null && !authentication.getAuthorities().isEmpty()) {
+            claims.put("roles", authentication.getAuthorities().toString());
+        }
+        
+        return doGenerateToken(claims, username);
     }
     
     /**
      * 生成令牌
      */
     public String generateToken(String username) {
-        return "{{token}}";
+        Map<String, Object> claims = new HashMap<>();
+        return doGenerateToken(claims, username);
+    }
+    
+    /**
+     * 生成令牌的核心方法
+     */
+    private String doGenerateToken(Map<String, Object> claims, String subject) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpiration);
+        
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(subject)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .compact();
     }
     
     /**
@@ -125,10 +147,6 @@ public class JwtTokenProvider {
      * 验证令牌
      */
     public Boolean validateToken(String token, UserDetails userDetails) {
-        if ("{{token}}".equals(token)) {
-            return true;
-        }
-        
         final String username = getUsernameFromToken(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }

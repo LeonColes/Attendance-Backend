@@ -273,11 +273,49 @@ public final class SystemConstants {
     }
     
     /**
-     * 课程加入方式常量
+     * UUID策略常量
+     * 定义不同类型实体ID使用的UUID格式
+     */
+    public static final class UuidStrategy {
+        /**
+         * 用户ID格式 - 使用UUID v4 (随机UUID)
+         */
+        public static final String USER_ID = "uuid2";
+        
+        /**
+         * 课程ID格式 - 使用UUID v4 (随机UUID)
+         */
+        public static final String COURSE_ID = "uuid2";
+        
+        /**
+         * 签到记录ID格式 - 使用UUID v4 (随机UUID)
+         */
+        public static final String RECORD_ID = "uuid2";
+        
+        /**
+         * 课程用户关系ID格式 - 使用UUID v4 (随机UUID)
+         */
+        public static final String COURSE_USER_ID = "uuid2";
+        
+        /**
+         * 时间戳UUID格式 - 使用UUID v1 (基于时间的UUID)
+         * 适用于需要按时间排序的实体
+         */
+        public static final String TIMESTAMP_BASED = "uuid1";
+        
+        /**
+         * 自定义前缀格式 - 使用自定义实现
+         * 可生成包含特定前缀的UUID，便于区分不同业务实体
+         */
+        public static final String PREFIXED = "custom-prefixed";
+    }
+    
+    /**
+     * 加入课程的方式
      */
     public static final class JoinMethod {
         /**
-         * 创建课程
+         * 创建者（自动加入）
          */
         public static final String CREATED = "CREATED";
         
