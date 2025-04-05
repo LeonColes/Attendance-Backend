@@ -14,6 +14,9 @@ import com.attendance.repository.record.RecordRepository;
 import com.attendance.repository.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -22,9 +25,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Optional;
 
 /**
  * 课程/签到任务服务实现类
@@ -81,70 +88,115 @@ public class CourseServiceImpl implements CourseService {
         User currentUser = userRepository.findByUsername(username)
             .orElseThrow(() -> new BusinessException("用户不存在"));
         
-        // 获取用户创建的课程
-        List<Course> createdCourses = courseRepository.findByCreatorIdAndType(
-            currentUser.getId(), SystemConstants.CourseType.COURSE);
+        List<Course> courses = new ArrayList<>();
         
-        // 获取用户参与的课程
-        List<CourseUser> joinedCourseUsers = courseUserRepository.findByUserId(currentUser.getId());
-        List<String> joinedCourseIds = joinedCourseUsers.stream()
-            .map(CourseUser::getCourseId)
-            .collect(Collectors.toList());
+        // 检查用户角色
+        boolean isTeacher = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_" + SystemConstants.UserRole.TEACHER));
         
-        List<Course> joinedCourses = courseRepository.findAllById(joinedCourseIds);
-        
-        // 合并两个列表（确保没有重复）
-        joinedCourses.removeAll(createdCourses);
-        createdCourses.addAll(joinedCourses);
-        
-        // 检查用户角色是否为学生
         boolean isStudent = authentication.getAuthorities().stream()
             .anyMatch(a -> a.getAuthority().equals("ROLE_" + SystemConstants.UserRole.STUDENT));
+        
+        // 教师只能看到自己创建的课程
+        if (isTeacher) {
+            courses = courseRepository.findByCreatorIdAndType(
+                currentUser.getId(), SystemConstants.CourseType.COURSE);
+        } 
+        // 学生只能看到自己加入的课程
+        else if (isStudent) {
+            List<CourseUser> joinedCourseUsers = courseUserRepository.findByUserIdAndActiveTrue(currentUser.getId());
+            List<String> joinedCourseIds = joinedCourseUsers.stream()
+                .map(CourseUser::getCourseId)
+                .collect(Collectors.toList());
             
-        return createdCourses.stream()
+            if (!joinedCourseIds.isEmpty()) {
+                courses = courseRepository.findAllById(joinedCourseIds).stream()
+                    .filter(course -> SystemConstants.CourseType.COURSE.equals(course.getType()))
+                    .collect(Collectors.toList());
+            }
+        }
+        // 管理员可以看到所有课程
+        else {
+            courses = courseRepository.findByType(SystemConstants.CourseType.COURSE);
+        }
+        
+        return courses.stream()
             .map(course -> {
                 User creator = userRepository.findById(course.getCreatorId())
                     .orElse(null);
                 CourseDTO dto = convertToDTO(course, creator);
                 dto.setMemberCount((int) courseUserRepository.countByCourseIdAndActiveTrue(course.getId()));
                 
-                // 如果是学生，为其添加签到状态信息
-                if (isStudent) {
-                    // 获取最新的签到任务
-                    List<Course> activeTasks = courseRepository.findByParentCourseIdAndTypeAndStatus(
-                        course.getId(), 
-                        SystemConstants.CourseType.CHECKIN,
-                        SystemConstants.TaskStatus.ACTIVE
-                    );
-                    
-                    if (!activeTasks.isEmpty()) {
-                        // 按创建时间排序，获取最新的签到任务
-                        Course latestTask = activeTasks.stream()
-                            .sorted(Comparator.comparing(Course::getCreatedAt).reversed())
-                            .findFirst()
-                            .orElse(null);
-                            
-                        if (latestTask != null) {
-                            // 检查用户是否已签到
-                            boolean hasCheckedIn = recordRepository.findByUserIdAndCourseId(
-                                currentUser.getId(), latestTask.getId()).isPresent();
-                                
-                            if (hasCheckedIn) {
-                                dto.setAttendanceStatus("已签到");
-                            } else {
-                                dto.setAttendanceStatus("未签到");
-                            }
-                        } else {
-                            dto.setAttendanceStatus("暂无签到");
-                        }
-                    } else {
-                        dto.setAttendanceStatus("暂无签到");
-                    }
-                }
-                
                 return dto;
             })
             .collect(Collectors.toList());
+    }
+    
+    @Override
+    public Map<String, Object> getMyCourses(int page, int size) {
+        // 获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        User currentUser = userRepository.findByUsername(username)
+            .orElseThrow(() -> new BusinessException("用户不存在"));
+        
+        // 创建分页请求
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Course> coursePageResult = null;
+        
+        // 检查用户角色
+        boolean isTeacher = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_" + SystemConstants.UserRole.TEACHER));
+        
+        boolean isStudent = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_" + SystemConstants.UserRole.STUDENT));
+        
+        // 教师只能看到自己创建的课程
+        if (isTeacher) {
+            coursePageResult = courseRepository.findByCreatorIdAndType(
+                currentUser.getId(), SystemConstants.CourseType.COURSE, pageable);
+        } 
+        // 学生只能看到自己加入的活跃课程
+        else if (isStudent) {
+            List<CourseUser> joinedCourseUsers = courseUserRepository.findByUserIdAndActiveTrue(currentUser.getId());
+            List<String> joinedCourseIds = joinedCourseUsers.stream()
+                .map(CourseUser::getCourseId)
+                .collect(Collectors.toList());
+            
+            if (!joinedCourseIds.isEmpty()) {
+                // 这里由于没有直接的分页方法，先获取指定ID的所有课程，然后手动分页
+                Page<Course> allMatchingCourses = courseRepository.findByTypeAndIdIn(
+                    SystemConstants.CourseType.COURSE, joinedCourseIds, pageable);
+                coursePageResult = allMatchingCourses;
+            } else {
+                // 如果学生没有加入任何课程，返回空分页结果
+                coursePageResult = Page.empty(pageable);
+            }
+        }
+        // 管理员可以看到所有课程
+        else {
+            coursePageResult = courseRepository.findByType(SystemConstants.CourseType.COURSE, pageable);
+        }
+        
+        // 将课程列表转换为DTO
+        List<CourseDTO> courseDTOs = coursePageResult.getContent().stream()
+            .map(course -> {
+                User creator = userRepository.findById(course.getCreatorId()).orElse(null);
+                CourseDTO dto = convertToDTO(course, creator);
+                dto.setMemberCount((int) courseUserRepository.countByCourseIdAndActiveTrue(course.getId()));
+                return dto;
+            })
+            .collect(Collectors.toList());
+        
+        // 创建分页结果
+        Map<String, Object> response = new HashMap<>();
+        response.put("courses", courseDTOs);
+        response.put("currentPage", coursePageResult.getNumber());
+        response.put("totalItems", coursePageResult.getTotalElements());
+        response.put("totalPages", coursePageResult.getTotalPages());
+        
+        return response;
     }
     
     @Override
@@ -169,6 +221,44 @@ public class CourseServiceImpl implements CourseService {
                 return dto;
             })
             .collect(Collectors.toList());
+    }
+    
+    @Override
+    public Map<String, Object> getCourseCheckinTasks(String courseId, int page, int size) {
+        Course parentCourse = courseRepository.findById(courseId)
+            .orElseThrow(() -> new BusinessException("课程不存在"));
+        
+        if (!SystemConstants.CourseType.COURSE.equals(parentCourse.getType())) {
+            throw new BusinessException("指定ID不是有效的课程");
+        }
+        
+        // 创建分页请求
+        Pageable pageable = PageRequest.of(page, size);
+        
+        // 获取分页数据
+        Page<Course> checkinTasksPage = courseRepository.findByParentCourseIdAndType(
+            courseId, SystemConstants.CourseType.CHECKIN, pageable);
+        
+        User creator = userRepository.findById(parentCourse.getCreatorId())
+            .orElse(null);
+        
+        // 转换为DTO列表
+        List<CourseDTO> checkinTaskDTOs = checkinTasksPage.getContent().stream()
+            .map(checkin -> {
+                CourseDTO dto = convertToDTO(checkin, creator);
+                dto.setParentCourseName(parentCourse.getName());
+                return dto;
+            })
+            .collect(Collectors.toList());
+        
+        // 创建分页结果
+        Map<String, Object> response = new HashMap<>();
+        response.put("checkinTasks", checkinTaskDTOs);
+        response.put("currentPage", checkinTasksPage.getNumber());
+        response.put("totalItems", checkinTasksPage.getTotalElements());
+        response.put("totalPages", checkinTasksPage.getTotalPages());
+        
+        return response;
     }
     
     @Override
@@ -342,44 +432,55 @@ public class CourseServiceImpl implements CourseService {
         
         // 查找课程
         Course course = courseRepository.findByCode(code)
-            .orElseThrow(() -> new BusinessException("课程不存在或邀请码无效"));
+            .orElseThrow(() -> new BusinessException("课程不存在"));
         
+        // 检查课程类型
         if (!SystemConstants.CourseType.COURSE.equals(course.getType())) {
-            throw new BusinessException("邀请码不是有效的课程");
+            throw new BusinessException("无效的课程");
         }
         
-        // 检查课程状态
-        if (!SystemConstants.CourseStatus.ACTIVE.equals(course.getStatus())) {
-            throw new BusinessException("该课程当前不可加入");
+        // 检查教师是否尝试加入自己创建的课程
+        if (course.getCreatorId().equals(currentUser.getId())) {
+            throw new BusinessException("您是该课程的创建者，无需加入");
         }
         
-        // 检查用户是否已加入该课程
-        if (courseUserRepository.existsByCourseIdAndUserId(course.getId(), currentUser.getId())) {
-            throw new BusinessException("您已经是该课程的成员");
+        // 检查用户角色 - 只有学生可以加入课程
+        boolean isStudent = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_" + SystemConstants.UserRole.STUDENT));
+            
+        if (!isStudent) {
+            throw new BusinessException("只有学生可以加入课程");
         }
         
-        // 创建课程-用户关联
+        // 检查是否已加入该课程
+        Optional<CourseUser> existingMember = courseUserRepository.findByCourseIdAndUserId(course.getId(), currentUser.getId());
+        if (existingMember.isPresent()) {
+            CourseUser existing = existingMember.get();
+            
+            // 如果之前已退出，则重新激活
+            if (!existing.getActive()) {
+                existing.setActive(true);
+                existing.setJoinedAt(LocalDateTime.now());
+                CourseUser updated = courseUserRepository.save(existing);
+                
+                return convertToCourseUserDTO(updated, currentUser, course);
+            }
+            
+            throw new BusinessException("您已加入该课程");
+        }
+        
+        // 创建课程-用户关系
         CourseUser courseUser = new CourseUser();
         courseUser.setCourseId(course.getId());
         courseUser.setUserId(currentUser.getId());
-        courseUser.setRole(SystemConstants.CourseUserRole.STUDENT);
+        courseUser.setRole(SystemConstants.UserRole.STUDENT);
         courseUser.setJoinedAt(LocalDateTime.now());
         courseUser.setJoinMethod(SystemConstants.JoinMethod.CODE);
         courseUser.setActive(true);
         
-        courseUserRepository.save(courseUser);
+        CourseUser saved = courseUserRepository.save(courseUser);
         
-        // 返回课程用户关联信息
-        CourseUserDTO dto = new CourseUserDTO();
-        dto.setCourseId(course.getId());
-        dto.setCourseName(course.getName());
-        dto.setUserId(currentUser.getId());
-        dto.setUsername(currentUser.getUsername());
-        dto.setUserFullName(currentUser.getFullName());
-        dto.setRole(SystemConstants.CourseUserRole.STUDENT);
-        dto.setJoinedAt(LocalDateTime.now());
-        
-        return dto;
+        return convertToCourseUserDTO(saved, currentUser, course);
     }
     
     @Override
@@ -409,6 +510,11 @@ public class CourseServiceImpl implements CourseService {
             throw new BusinessException("该课程当前不可加入");
         }
         
+        // 检查用户是否为课程创建者
+        if (course.getCreatorId().equals(currentUser.getId())) {
+            throw new BusinessException("您是该课程的创建者，无需加入");
+        }
+        
         // 检查用户是否已加入该课程
         if (courseUserRepository.existsByCourseIdAndUserId(course.getId(), currentUser.getId())) {
             throw new BusinessException("您已经是该课程的成员");
@@ -433,7 +539,7 @@ public class CourseServiceImpl implements CourseService {
         dto.setUsername(currentUser.getUsername());
         dto.setUserFullName(currentUser.getFullName());
         dto.setRole(SystemConstants.CourseUserRole.STUDENT);
-        dto.setJoinedAt(LocalDateTime.now());
+        dto.setJoinedAt(courseUser.getJoinedAt());
         
         return dto;
     }
@@ -769,6 +875,18 @@ public class CourseServiceImpl implements CourseService {
             }
         }
         
+        return dto;
+    }
+
+    private CourseUserDTO convertToCourseUserDTO(CourseUser courseUser, User currentUser, Course course) {
+        CourseUserDTO dto = new CourseUserDTO();
+        dto.setCourseId(course.getId());
+        dto.setCourseName(course.getName());
+        dto.setUserId(currentUser.getId());
+        dto.setUsername(currentUser.getUsername());
+        dto.setUserFullName(currentUser.getFullName());
+        dto.setRole(courseUser.getRole());
+        dto.setJoinedAt(courseUser.getJoinedAt());
         return dto;
     }
 } 

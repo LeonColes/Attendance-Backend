@@ -37,7 +37,7 @@ spring:
   # 数据库初始化配置
   sql:
     init:
-      mode: never  # 禁用SQL初始化
+      mode: always
       schema-locations: classpath:db/schema.sql
       continue-on-error: false
   

@@ -32,6 +32,14 @@ public interface CourseUserRepository extends JpaRepository<CourseUser, String> 
     List<CourseUser> findByUserId(String userId);
     
     /**
+     * 根据用户ID查找活跃的课程-用户关联
+     * 
+     * @param userId 用户ID
+     * @return 活跃的课程-用户关联列表
+     */
+    List<CourseUser> findByUserIdAndActiveTrue(String userId);
+    
+    /**
      * 根据课程ID和用户ID查找课程-用户关联
      * 
      * @param courseId 课程ID

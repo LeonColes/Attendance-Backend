@@ -10,6 +10,12 @@ import com.attendance.model.dto.course.CreateAttendanceRequest;
 import com.attendance.model.dto.user.UserDTO;
 import com.attendance.service.course.CourseService;
 import com.attendance.service.user.UserService;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -19,7 +25,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.ByteArrayOutputStream;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 课程控制器
@@ -92,26 +102,35 @@ public class CourseController {
     /**
      * 获取用户所有课程（老师只能看自己创建的，学生只能看自己加入的）
      * 
+     * @param page 页码
+     * @param size 每页大小
      * @return 课程列表
      */
     @GetMapping("/list")
-    public ApiResponse<List<CourseDTO>> getMyCourses() {
-        log.info("获取我的课程列表");
-        List<CourseDTO> courses = courseService.getMyCourses();
-        return ApiResponse.success(courses);
+    public ApiResponse<Map<String, Object>> getMyCourses(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("获取我的课程列表: page={}, size={}", page, size);
+        Map<String, Object> response = courseService.getMyCourses(page, size);
+        return ApiResponse.success(response);
     }
     
     /**
      * 获取课程下的所有签到任务
      * 
      * @param courseId 课程ID
+     * @param page 页码
+     * @param size 每页大小
      * @return 签到任务列表
      */
     @GetMapping("/{courseId}/checkins")
-    public ApiResponse<List<CourseDTO>> getCourseCheckinTasks(@PathVariable String courseId) {
-        log.info("获取课程下的签到任务: {}", courseId);
-        List<CourseDTO> checkinTasks = courseService.getCourseCheckinTasks(courseId);
-        return ApiResponse.success(checkinTasks);
+    public ApiResponse<Map<String, Object>> getCourseCheckinTasks(
+            @PathVariable String courseId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("获取课程下的签到任务: courseId={}, page={}, size={}", courseId, page, size);
+        Map<String, Object> response = courseService.getCourseCheckinTasks(courseId, page, size);
+        return ApiResponse.success(response);
     }
     
     /**
@@ -136,13 +155,13 @@ public class CourseController {
      * @return 成员列表
      */
     @GetMapping("/members/list")
-    public ApiResponse<List<UserDTO>> getCourseMembers(
+    public ApiResponse<Map<String, Object>> getCourseMembers(
             @RequestParam String courseId,
-            @RequestParam(required = false, defaultValue = "0") int page,
-            @RequestParam(required = false, defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         log.info("获取课程成员列表: courseId={}, page={}, size={}", courseId, page, size);
-        List<UserDTO> users = userService.getCourseUsers(courseId);
-        return ApiResponse.success(users);
+        Map<String, Object> response = userService.getCourseUsers(courseId, page, size);
+        return ApiResponse.success(response);
     }
     
     /**
@@ -248,25 +267,38 @@ public class CourseController {
     }
     
     /**
-     * 获取课程邀请二维码链接
+     * 获取课程邀请二维码图片(直接返回图片数据)
      * 
      * @param courseId 课程ID
-     * @return 邀请链接(用于生成二维码)
+     * @return 二维码图片
      */
-    @GetMapping("/qrcode")
+    @GetMapping(value = "/qrcode", produces = "image/png")
     @PreAuthorize("@courseSecurityService.isCourseCreator(#courseId) or hasRole('ADMIN')")
-    public ApiResponse<String> generateCourseQRCode(@RequestParam String courseId) {
-        log.info("生成课程邀请二维码: 课程ID={}", courseId);
-        
-        CourseDTO course = courseService.getCourse(courseId);
-        if (course == null || !SystemConstants.CourseType.COURSE.equals(course.getType())) {
-            throw new BusinessException("课程不存在");
+    public byte[] generateCourseQRCode(@RequestParam String courseId) {
+        try {
+            CourseDTO course = courseService.getCourse(courseId);
+            if (course == null || !SystemConstants.CourseType.COURSE.equals(course.getType())) {
+                throw new BusinessException("课程不存在");
+            }
+            
+            // 生成邀请链接
+            String inviteUrl = "attendance://join?code=" + course.getCode();
+            
+            // 创建二维码
+            QRCodeWriter qrCodeWriter = new QRCodeWriter();
+            Map<EncodeHintType, Object> hints = new HashMap<>();
+            hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.L);
+            hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
+            hints.put(EncodeHintType.MARGIN, 1);
+            
+            BitMatrix bitMatrix = qrCodeWriter.encode(inviteUrl, BarcodeFormat.QR_CODE, 250, 250, hints);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            MatrixToImageWriter.writeToStream(bitMatrix, "PNG", outputStream);
+            
+            return outputStream.toByteArray();
+        } catch (Exception e) {
+            throw new BusinessException("生成二维码失败: " + e.getMessage());
         }
-        
-        // 生成邀请链接，前端可基于此链接生成二维码
-        String inviteUrl = "attendance://join?code=" + course.getCode();
-        
-        return ApiResponse.success("生成课程邀请二维码成功", inviteUrl);
     }
     
     // ========== 请求/响应数据类 ==========

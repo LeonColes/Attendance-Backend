@@ -4,6 +4,7 @@ import com.attendance.model.dto.user.UserDTO;
 import com.attendance.model.dto.user.UpdateUserRequest;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 用户服务接口
@@ -47,4 +48,14 @@ public interface UserService {
      * @return 用户列表
      */
     List<UserDTO> getCourseUsers(String courseId);
+    
+    /**
+     * 获取课程下的所有用户（带分页）
+     * 
+     * @param courseId 课程ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 分页用户列表
+     */
+    Map<String, Object> getCourseUsers(String courseId, int page, int size);
 } 

@@ -9,6 +9,8 @@ import com.attendance.repository.user.UserRepository;
 import com.attendance.repository.course.CourseUserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,7 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.ArrayList;
 
 /**
  * 用户服务实现类
@@ -140,6 +145,50 @@ public class UserServiceImpl implements UserService {
                     return convertToDTO(user);
                 })
                 .collect(Collectors.toList());
+    }
+    
+    /**
+     * 获取带分页的课程用户列表
+     * 
+     * @param courseId 课程ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 带分页的用户列表
+     */
+    @Override
+    public Map<String, Object> getCourseUsers(String courseId, int page, int size) {
+        // 创建分页请求
+        Pageable pageable = PageRequest.of(page, size);
+        
+        // 获取课程用户关系列表
+        List<CourseUser> allCourseUsers = courseUserRepository.findByCourseIdAndActiveTrue(courseId);
+        
+        // 手动分页（由于没有直接的分页方法）
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), allCourseUsers.size());
+        
+        List<CourseUser> paginatedCourseUsers = start < end 
+            ? allCourseUsers.subList(start, end) 
+            : new ArrayList<>();
+            
+        // 转换为DTO
+        List<UserDTO> userDTOs = paginatedCourseUsers.stream()
+            .map(courseUser -> {
+                String userId = courseUser.getUserId();
+                User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new BusinessException("用户不存在: " + userId));
+                return convertToDTO(user);
+            })
+            .collect(Collectors.toList());
+        
+        // 创建分页结果
+        Map<String, Object> response = new HashMap<>();
+        response.put("users", userDTOs);
+        response.put("currentPage", page);
+        response.put("totalItems", allCourseUsers.size());
+        response.put("totalPages", (int) Math.ceil((double) allCourseUsers.size() / size));
+        
+        return response;
     }
     
     /**

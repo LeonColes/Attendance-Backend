@@ -6,6 +6,7 @@ import com.attendance.model.dto.course.CourseUserDTO;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 课程/签到任务服务接口
@@ -28,11 +29,26 @@ public interface CourseService {
     List<CourseDTO> getAllCourses();
     
     /**
-     * 获取当前用户的课程
+     * 获取当前用户的课程列表
+     * 教师只能看到自己创建的课程
+     * 学生只能看到自己加入的课程
+     * 管理员可以看到所有课程
      * 
      * @return 课程列表
      */
     List<CourseDTO> getMyCourses();
+    
+    /**
+     * 获取当前用户的课程列表（带分页）
+     * 教师只能看到自己创建的课程
+     * 学生只能看到自己加入的课程
+     * 管理员可以看到所有课程
+     * 
+     * @param page 页码
+     * @param size 每页大小
+     * @return 分页课程列表
+     */
+    Map<String, Object> getMyCourses(int page, int size);
     
     /**
      * 获取课程下的所有签到任务
@@ -41,6 +57,16 @@ public interface CourseService {
      * @return 签到任务列表
      */
     List<CourseDTO> getCourseCheckinTasks(String courseId);
+    
+    /**
+     * 获取课程下的所有签到任务（带分页）
+     * 
+     * @param courseId 课程ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 签到任务分页列表
+     */
+    Map<String, Object> getCourseCheckinTasks(String courseId, int page, int size);
     
     /**
      * 创建普通课程

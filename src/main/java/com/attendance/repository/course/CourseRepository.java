@@ -1,6 +1,8 @@
 package com.attendance.repository.course;
 
 import com.attendance.model.entity.Course;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -112,4 +114,43 @@ public interface CourseRepository extends JpaRepository<Course, String> {
             LocalDateTime now, 
             String type,
             String status);
+
+    /**
+     * 根据创建者ID和类型查找（带分页）
+     * 
+     * @param creatorId 创建者ID
+     * @param type 类型 (COURSE/CHECKIN)
+     * @param pageable 分页参数
+     * @return 课程/任务分页列表
+     */
+    Page<Course> findByCreatorIdAndType(String creatorId, String type, Pageable pageable);
+    
+    /**
+     * 根据类型查找（带分页）
+     * 
+     * @param type 类型 (COURSE/CHECKIN)
+     * @param pageable 分页参数
+     * @return 课程/任务分页列表
+     */
+    Page<Course> findByType(String type, Pageable pageable);
+    
+    /**
+     * 根据类型和ID列表查找（带分页）
+     * 
+     * @param type 类型 (COURSE/CHECKIN)
+     * @param ids ID列表
+     * @param pageable 分页参数
+     * @return 课程/任务分页列表
+     */
+    Page<Course> findByTypeAndIdIn(String type, List<String> ids, Pageable pageable);
+
+    /**
+     * 查找特定课程下的所有签到任务（带分页）
+     * 
+     * @param parentCourseId 父课程ID
+     * @param type 类型 (CHECKIN)
+     * @param pageable 分页参数
+     * @return 签到任务分页列表
+     */
+    Page<Course> findByParentCourseIdAndType(String parentCourseId, String type, Pageable pageable);
 } 

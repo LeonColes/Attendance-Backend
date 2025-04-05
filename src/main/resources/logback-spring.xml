@@ -3,7 +3,7 @@
     <property name="LOG_PATH" value="./logs" />
     <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" />
 
-    <!-- 控制台输出 -->
+    <!-- 控制台输出 (仅在开发环境使用，现在禁用) -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
@@ -61,33 +61,38 @@
 
     <!-- 单一环境配置 -->
     <root level="INFO">
-        <appender-ref ref="CONSOLE" />
+        <!-- 禁用控制台输出 -->
+        <!-- <appender-ref ref="CONSOLE" /> -->
         <appender-ref ref="FILE" />
         <appender-ref ref="ERROR_FILE" />
     </root>
     
     <!-- 应用日志 -->
     <logger name="com.attendance" level="DEBUG" additivity="false">
-        <appender-ref ref="CONSOLE" />
+        <!-- 禁用控制台输出 -->
+        <!-- <appender-ref ref="CONSOLE" /> -->
         <appender-ref ref="FILE" />
         <appender-ref ref="ERROR_FILE" />
     </logger>
     
     <!-- 请求日志配置 -->
     <logger name="org.springframework.web.filter.CommonsRequestLoggingFilter" level="DEBUG" additivity="false">
-        <appender-ref ref="CONSOLE" />
+        <!-- 禁用控制台输出 -->
+        <!-- <appender-ref ref="CONSOLE" /> -->
         <appender-ref ref="HTTP_FILE" />
     </logger>
     
     <!-- 减少Spring Web框架的冗余DEBUG日志 -->
     <logger name="org.springframework.web" level="INFO" additivity="false">
-        <appender-ref ref="CONSOLE" />
+        <!-- 禁用控制台输出 -->
+        <!-- <appender-ref ref="CONSOLE" /> -->
         <appender-ref ref="FILE" />
     </logger>
 
     <!-- 对于特定的HTTP请求处理日志，单独配置 -->
     <logger name="org.springframework.web.servlet.mvc" level="DEBUG" additivity="false">
-        <appender-ref ref="CONSOLE" />
+        <!-- 禁用控制台输出 -->
+        <!-- <appender-ref ref="CONSOLE" /> -->
         <appender-ref ref="HTTP_FILE" />
     </logger>
 </configuration>
