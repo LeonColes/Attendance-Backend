@@ -1,8 +1,11 @@
 package com.attendance.model.entity;
 
+import com.attendance.common.constants.SystemConstants;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
 
 import java.time.LocalDateTime;
@@ -13,6 +16,8 @@ import java.time.LocalDateTime;
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "course_users")
 public class CourseUser extends BaseEntity {
@@ -63,4 +68,13 @@ public class CourseUser extends BaseEntity {
      */
     @Column(name = "active", nullable = false)
     private Boolean active = true;
-} 
+
+    /**
+     * 检查用户是否为创建者
+     * 
+     * @return 是否为创建者
+     */
+    public boolean isCreator() {
+        return SystemConstants.CourseUserRole.CREATOR.equals(this.role);
+    }
+}

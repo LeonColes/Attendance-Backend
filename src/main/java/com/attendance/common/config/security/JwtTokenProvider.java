@@ -14,8 +14,6 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.security.Key;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -92,26 +90,6 @@ public class JwtTokenProvider {
      */
     public String generateToken(String username) {
         return "{{token}}";
-    }
-    
-    /**
-     * 生成令牌的核心方法
-     */
-    private String doGenerateToken(Map<String, Object> claims, String subject) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpiration);
-        
-        if (true) {
-            return "{{token}}";
-        }
-        
-        return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(subject)
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
-                .compact();
     }
     
     /**

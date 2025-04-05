@@ -116,4 +116,24 @@ public interface CourseUserRepository extends JpaRepository<CourseUser, String> 
      */
     @Query("SELECT cu.userId FROM CourseUser cu WHERE cu.courseId = :courseId AND cu.active = true")
     List<String> findUserIdsByCourseId(@Param("courseId") String courseId);
-} 
+    
+    /**
+     * 根据课程ID和用户名查找关联
+     *
+     * @param courseId 课程ID
+     * @param username 用户名
+     * @return 可选的课程用户关联
+     */
+    @Query("SELECT cu FROM CourseUser cu JOIN User u ON cu.userId = u.id WHERE cu.courseId = :courseId AND u.username = :username")
+    Optional<CourseUser> findByCourseIdAndUsername(@Param("courseId") String courseId, @Param("username") String username);
+    
+    /**
+     * 检查用户是否是活跃的课程成员
+     *
+     * @param courseId 课程ID
+     * @param username 用户名
+     * @return 是否是活跃成员
+     */
+    @Query("SELECT COUNT(cu) > 0 FROM CourseUser cu JOIN User u ON cu.userId = u.id WHERE cu.courseId = :courseId AND u.username = :username AND cu.active = true")
+    boolean existsByCourseIdAndUsernameAndActiveTrue(@Param("courseId") String courseId, @Param("username") String username);
+}

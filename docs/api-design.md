@@ -104,7 +104,7 @@ curl -X POST http://localhost:8080/api/auth/login \
 **请求**:
 ```bash
 curl -X GET http://localhost:8080/api/users/me \
-  -H "Authorization: Bearer eyJhbGciOiJ..."
+  -H "Authorization: Bearer {{token}}"
 ```
 
 **成功响应**:
@@ -113,7 +113,7 @@ curl -X GET http://localhost:8080/api/users/me \
   "code": 200,
   "message": "成功",
   "data": {
-    "id": 1,
+    "id": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
     "username": "student1",
     "fullName": "学生一",
     "email": "student1@example.com",
@@ -149,7 +149,7 @@ curl -X GET http://localhost:8080/api/users/me \
 ```bash
 curl -X POST http://localhost:8080/api/courses \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJ..." \
+  -H "Authorization: Bearer {{token}}" \
   -d '{
     "name": "Java程序设计",
     "description": "本课程介绍Java编程基础与应用开发",
@@ -165,7 +165,7 @@ curl -X POST http://localhost:8080/api/courses \
   "code": 200,
   "message": "课程创建成功",
   "data": {
-    "id": "abc123",
+    "id": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
     "name": "Java程序设计",
     "description": "本课程介绍Java编程基础与应用开发",
     "creatorId": 2,
@@ -188,12 +188,12 @@ curl -X POST http://localhost:8080/api/courses \
 ```bash
 curl -X POST http://localhost:8080/api/courses \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJ..." \
+  -H "Authorization: Bearer {{token}}" \
   -d '{
     "name": "周三课程签到",
     "description": "第5周周三课程签到",
     "type": "CHECKIN",
-    "parentCourseId": "abc123",
+    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
     "checkinStartTime": "2025-04-10T15:00:00",
     "checkinEndTime": "2025-04-10T15:15:00",
     "checkinType": "QR_CODE"
@@ -213,7 +213,7 @@ curl -X POST http://localhost:8080/api/courses \
     "creatorUsername": "teacher1",
     "creatorFullName": "张老师",
     "type": "CHECKIN",
-    "parentCourseId": "abc123",
+    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
     "parentCourseName": "Java程序设计",
     "checkinStartTime": "2025-04-10T15:00:00",
     "checkinEndTime": "2025-04-10T15:15:00",
@@ -230,8 +230,8 @@ curl -X POST http://localhost:8080/api/courses \
 
 **请求**:
 ```bash
-curl -X GET http://localhost:8080/api/courses/abc123/checkins \
-  -H "Authorization: Bearer eyJhbGciOiJ..."
+curl -X GET http://localhost:8080/api/courses/b3184f7a-d4fe-4050-ad09-a5091cdbb847/checkins \
+  -H "Authorization: Bearer {{token}}"
 ```
 
 **成功响应**:
@@ -247,7 +247,7 @@ curl -X GET http://localhost:8080/api/courses/abc123/checkins \
       "creatorId": 2,
       "creatorUsername": "teacher1",
       "type": "CHECKIN",
-      "parentCourseId": "abc123",
+      "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
       "parentCourseName": "Java程序设计",
       "checkinStartTime": "2025-04-10T15:00:00",
       "checkinEndTime": "2025-04-10T15:15:00",
@@ -265,7 +265,7 @@ curl -X GET http://localhost:8080/api/courses/abc123/checkins \
 **请求**:
 ```bash
 curl -X GET http://localhost:8080/api/courses/checkin/def456/code \
-  -H "Authorization: Bearer eyJhbGciOiJ..."
+  -H "Authorization: Bearer {{token}}"
 ```
 
 **成功响应**:
@@ -287,7 +287,7 @@ curl -X GET http://localhost:8080/api/courses/checkin/def456/code \
 ```bash
 curl -X POST http://localhost:8080/api/courses/checkin/def456 \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJ..." \
+  -H "Authorization: Bearer {{token}}" \
   -d '{
     "verifyData": "{\"code\":\"f47ac10b-58cc-4372-a567-0e02b2c3d479\"}",
     "location": "113.9432,22.5194",
@@ -314,12 +314,12 @@ curl -X POST http://localhost:8080/api/courses/checkin/def456 \
 ```bash
 curl -X POST http://localhost:8080/api/courses \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJ..." \
+  -H "Authorization: Bearer {{token}}" \
   -d '{
     "name": "位置签到示例",
     "description": "基于位置的签到任务",
     "type": "CHECKIN",
-    "parentCourseId": "abc123",
+    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
     "checkinStartTime": "2025-04-12T10:00:00",
     "checkinEndTime": "2025-04-12T10:30:00",
     "checkinType": "LOCATION",
@@ -337,7 +337,7 @@ curl -X POST http://localhost:8080/api/courses \
     "name": "位置签到示例",
     "description": "基于位置的签到任务",
     "type": "CHECKIN",
-    "parentCourseId": "abc123",
+    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
     "parentCourseName": "Java程序设计",
     "checkinStartTime": "2025-04-12T10:00:00",
     "checkinEndTime": "2025-04-12T10:30:00",
@@ -356,7 +356,7 @@ curl -X POST http://localhost:8080/api/courses \
 ```bash
 curl -X POST http://localhost:8080/api/courses/checkin/ghi789 \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJ..." \
+  -H "Authorization: Bearer {{token}}" \
   -d '{
     "verifyData": "{\"latitude\":22.5190,\"longitude\":113.9428}",
     "location": "113.9428,22.5190",
@@ -383,12 +383,12 @@ curl -X POST http://localhost:8080/api/courses/checkin/ghi789 \
 ```bash
 curl -X POST http://localhost:8080/api/courses \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJ..." \
+  -H "Authorization: Bearer {{token}}" \
   -d '{
     "name": "WiFi签到示例",
     "description": "基于WiFi连接的签到任务",
     "type": "CHECKIN",
-    "parentCourseId": "abc123",
+    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
     "checkinStartTime": "2025-04-15T14:00:00",
     "checkinEndTime": "2025-04-15T14:30:00",
     "checkinType": "WIFI",
@@ -406,7 +406,7 @@ curl -X POST http://localhost:8080/api/courses \
     "name": "WiFi签到示例",
     "description": "基于WiFi连接的签到任务",
     "type": "CHECKIN",
-    "parentCourseId": "abc123",
+    "parentCourseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
     "parentCourseName": "Java程序设计",
     "checkinStartTime": "2025-04-15T14:00:00",
     "checkinEndTime": "2025-04-15T14:30:00",
@@ -425,7 +425,7 @@ curl -X POST http://localhost:8080/api/courses \
 ```bash
 curl -X POST http://localhost:8080/api/courses/checkin/jkl012 \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJ..." \
+  -H "Authorization: Bearer {{token}}" \
   -d '{
     "verifyData": "{\"ssid\":\"University_WiFi\",\"bssid\":\"00:11:22:33:44:55\"}",
     "location": "113.9440,22.5188",
@@ -462,7 +462,7 @@ curl -X POST http://localhost:8080/api/courses/checkin/jkl012 \
 ```bash
 curl -X POST http://localhost:8080/api/records/check-in/qrcode \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJ..." \
+  -H "Authorization: Bearer {{token}}" \
   -d '{
     "taskId": "12a45b67-89c0-12d3-e456-78fg901hij2k",
     "code": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
@@ -483,7 +483,7 @@ curl -X POST http://localhost:8080/api/records/check-in/qrcode \
     "userFullName": "李学生",
     "taskId": "12a45b67-89c0-12d3-e456-78fg901hij2k",
     "taskTitle": "程序设计课程签到",
-    "courseId": "abc123",
+    "courseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
     "courseName": "Java程序设计",
     "status": "NORMAL",
     "checkInTime": "2025-04-10T15:01:30",
@@ -500,8 +500,8 @@ curl -X POST http://localhost:8080/api/records/check-in/qrcode \
 
 **请求**:
 ```bash
-curl -X GET http://localhost:8080/api/records/course/abc123 \
-  -H "Authorization: Bearer eyJhbGciOiJ..."
+curl -X GET http://localhost:8080/api/records/course/b3184f7a-d4fe-4050-ad09-a5091cdbb847 \
+  -H "Authorization: Bearer {{token}}"
 ```
 
 **成功响应**:
@@ -537,8 +537,8 @@ curl -X GET http://localhost:8080/api/records/course/abc123 \
 
 **请求**:
 ```bash
-curl -X GET http://localhost:8080/api/stats/course/abc123 \
-  -H "Authorization: Bearer eyJhbGciOiJ..."
+curl -X GET http://localhost:8080/api/stats/course/b3184f7a-d4fe-4050-ad09-a5091cdbb847 \
+  -H "Authorization: Bearer {{token}}"
 ```
 
 **成功响应**:
@@ -547,7 +547,7 @@ curl -X GET http://localhost:8080/api/stats/course/abc123 \
   "code": 200,
   "message": "成功",
   "data": {
-    "courseId": "abc123",
+    "courseId": "b3184f7a-d4fe-4050-ad09-a5091cdbb847",
     "courseName": "Java程序设计",
     "totalTasks": 15,
     "totalStudents": 45,
