@@ -261,19 +261,21 @@ public class CourseController {
     public ApiResponse<CheckinResponse> submitCheckin(@Valid @RequestBody SubmitCheckinRequest request) {
         log.info("提交签到: 请求={}", request);
         
-        boolean success = courseService.submitCheckin(
+        Map<String, Object> result = courseService.submitCheckin(
             request.getTaskId(),
             request.getVerifyData(),
+            request.getVerifyMethod(),
             request.getLocation(),
             request.getDevice()
         );
         
         CheckinResponse response = new CheckinResponse();
         response.setCheckinId(request.getTaskId());
-        response.setSuccess(success);
+        response.setSuccess((Boolean) result.getOrDefault("success", false));
         response.setTimestamp(System.currentTimeMillis());
         
-        return ApiResponse.success(success ? "签到成功" : "签到失败", response);
+        String message = (Boolean) result.getOrDefault("success", false) ? "签到成功" : "签到失败";
+        return ApiResponse.success(message, response);
     }
     
     /**
@@ -516,6 +518,12 @@ public class CourseController {
         private String verifyData;
         
         /**
+         * 签到方式
+         */
+        @NotBlank(message = "签到方式不能为空")
+        private String verifyMethod;
+        
+        /**
          * 位置信息
          */
         private String location;
@@ -524,12 +532,6 @@ public class CourseController {
          * 设备信息
          */
         private String device;
-        
-        /**
-         * 签到方式
-         */
-        @NotBlank(message = "签到方式不能为空")
-        private String verifyMethod;
     }
     
     /**

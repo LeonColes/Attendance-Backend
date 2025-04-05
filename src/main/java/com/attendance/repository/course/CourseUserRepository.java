@@ -162,4 +162,14 @@ public interface CourseUserRepository extends JpaRepository<CourseUser, String> 
      * @return 活跃成员数量
      */
     long countByCourseIdAndRoleAndActiveTrue(String courseId, String role);
+    
+    /**
+     * 查询指定课程和角色的用户ID列表
+     *
+     * @param courseId 课程ID
+     * @param role 角色
+     * @return 用户ID列表
+     */
+    @Query("SELECT cu.userId FROM CourseUser cu WHERE cu.courseId = :courseId AND cu.role = :role AND cu.active = true")
+    List<String> findUserIdsByCourseIdAndRole(@Param("courseId") String courseId, @Param("role") String role);
 }

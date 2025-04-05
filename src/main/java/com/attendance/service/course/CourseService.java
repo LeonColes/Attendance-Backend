@@ -151,16 +151,17 @@ public interface CourseService {
     /**
      * 提交签到
      *
-     * @param checkinId 签到任务ID
+     * @param taskId 签到任务ID
      * @param verifyData 验证数据
-     * @param location 位置信息
+     * @param verifyMethod 验证方法
+     * @param location 位置
      * @param device 设备信息
-     * @return 是否签到成功
+     * @return 签到结果信息
      */
-    boolean submitCheckin(String checkinId, String verifyData, String location, String device);
+    Map<String, Object> submitCheckin(String taskId, String verifyData, String verifyMethod, String location, String device);
     
     /**
-     * 生成签到码
+     * 获取签到码
      *
      * @param checkinId 签到任务ID
      * @return 签到码

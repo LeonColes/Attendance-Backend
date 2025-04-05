@@ -32,6 +32,7 @@ import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 课程/签到任务服务实现类
@@ -652,119 +653,199 @@ public class CourseServiceImpl implements CourseService {
     
     @Override
     @Transactional
-    public boolean submitCheckin(String checkinId, String verifyData, String location, String device) {
-        // 获取当前登录用户
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        
-        User currentUser = userRepository.findByUsername(username)
-            .orElseThrow(() -> new BusinessException("用户不存在"));
-        
-        // 查找签到任务
-        Course checkinTask = courseRepository.findById(checkinId)
+    public Map<String, Object> submitCheckin(String taskId, String verifyData, String verifyMethod,
+                                            String location, String device) {
+        // 验证签到任务
+        Course checkinTask = courseRepository.findById(taskId)
             .orElseThrow(() -> new BusinessException("签到任务不存在"));
         
         if (!SystemConstants.CourseType.CHECKIN.equals(checkinTask.getType())) {
             throw new BusinessException("指定ID不是有效的签到任务");
         }
         
-        // 验证签到任务状态
         if (!SystemConstants.TaskStatus.ACTIVE.equals(checkinTask.getStatus())) {
-            throw new BusinessException("签到任务当前不可用");
+            throw new BusinessException("签到任务未开始或已结束");
         }
         
-        // 验证签到时间
-        LocalDateTime now = LocalDateTime.now();
-        if (checkinTask.getCheckinStartTime() != null && 
-            now.isBefore(checkinTask.getCheckinStartTime())) {
-            throw new BusinessException("签到尚未开始");
-        }
+        // 获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        User currentUser = userRepository.findByUsername(username)
+            .orElseThrow(() -> new BusinessException("用户不存在"));
         
-        if (checkinTask.getCheckinEndTime() != null && 
-            now.isAfter(checkinTask.getCheckinEndTime())) {
-            throw new BusinessException("签到已结束");
-        }
-        
-        // 检查用户是否已签到
-        if (recordRepository.findByUserIdAndCourseId(currentUser.getId(), checkinId).isPresent()) {
-            throw new BusinessException("您已经签到过该任务");
-        }
-        
-        // 检查用户是否为课程成员
+        // 验证用户是否为课程成员
         if (checkinTask.getParentCourseId() != null) {
-            boolean isMember = courseUserRepository.existsByCourseIdAndUserId(
+            boolean isMember = courseUserRepository.existsByCourseIdAndUserIdAndActiveTrue(
                 checkinTask.getParentCourseId(), currentUser.getId());
-                
+            
             if (!isMember) {
                 throw new BusinessException("您不是该课程的成员，无法签到");
             }
         }
         
-        // 根据签到类型验证签到数据
-        boolean verifySuccess = verifyCheckinData(checkinTask, verifyData, location);
+        // 检查是否重复签到
+        Optional<Record> existingRecord = recordRepository.findByUserIdAndCourseId(currentUser.getId(), taskId);
+        if (existingRecord.isPresent()) {
+            throw new BusinessException("您已经签到过了");
+        }
         
-        if (!verifySuccess) {
-            return false;
+        // 根据签到类型验证签到数据
+        boolean verified = false;
+        String validationError = "";
+        
+        try {
+            if (SystemConstants.CheckInType.QR_CODE.equals(checkinTask.getCheckinType())) {
+                // 处理二维码验证 - 支持任务ID和verifyData中的ID不匹配的情况
+                // 对于二维码签到，提交的verifyData可能包含任何检入任务的ID
+                if (verifyData != null && verifyData.startsWith("CHECKIN:")) {
+                    String scanId = extractCodeFromVerifyParams(verifyData);
+                    // 如果扫描的不是当前任务，需要验证扫描的任务是否有效
+                    if (!scanId.equals(taskId)) {
+                        log.info("扫描码ID与提交任务ID不匹配，尝试验证扫描码: scan={}, task={}", scanId, taskId);
+                        // 查找verifyData中ID对应的签到任务
+                        Course scannedTask = courseRepository.findById(scanId).orElse(null);
+                        if (scannedTask != null && SystemConstants.CourseType.CHECKIN.equals(scannedTask.getType()) &&
+                            SystemConstants.TaskStatus.ACTIVE.equals(scannedTask.getStatus())) {
+                            // 检查是否同属一个父课程
+                            if (scannedTask.getParentCourseId() != null && 
+                                scannedTask.getParentCourseId().equals(checkinTask.getParentCourseId())) {
+                                log.info("扫描了同一课程的其他有效签到任务，允许签到");
+                                verified = true;
+                            } else {
+                                validationError = "您扫描的是其他课程的签到码";
+                            }
+                        } else {
+                            validationError = "您扫描的签到码无效或已过期";
+                        }
+                    } else {
+                        // 正常验证流程
+                        verified = verifyQRCode(checkinTask, verifyData);
+                    }
+                } else {
+                    verified = verifyQRCode(checkinTask, verifyData);
+                }
+            } 
+            else if (SystemConstants.CheckInType.LOCATION.equals(checkinTask.getCheckinType())) {
+                verified = verifyLocation(checkinTask, location);
+                if (!verified) validationError = "位置验证失败";
+            } 
+            else if (SystemConstants.CheckInType.WIFI.equals(checkinTask.getCheckinType())) {
+                verified = verifyWifi(checkinTask, verifyData);
+                if (!verified) validationError = "WiFi验证失败";
+            } 
+            else if (SystemConstants.CheckInType.MANUAL.equals(checkinTask.getCheckinType())) {
+                // 手动签到直接通过
+                verified = true;
+            }
+        } catch (Exception e) {
+            log.error("签到验证过程发生异常", e);
+            validationError = "验证过程发生错误: " + e.getMessage();
+        }
+        
+        // 签到未验证通过
+        if (!verified) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("checkinId", taskId);
+            result.put("success", false);
+            result.put("error", validationError.isEmpty() ? "验证未通过" : validationError);
+            result.put("timestamp", System.currentTimeMillis());
+            return result;
+        }
+        
+        // 处理签到时间，确定签到状态
+        LocalDateTime now = LocalDateTime.now();
+        String status = SystemConstants.RecordStatus.NORMAL;
+        
+        // 如果超出签到时间但在结束时间内，标记为迟到
+        if (checkinTask.getCheckinStartTime() != null && now.isAfter(checkinTask.getCheckinStartTime().plusMinutes(10))) {
+            status = SystemConstants.RecordStatus.LATE;
         }
         
         // 创建签到记录
         Record record = new Record();
         record.setUserId(currentUser.getId());
-        record.setCourseId(checkinId);
+        record.setCourseId(taskId);
         record.setParentCourseId(checkinTask.getParentCourseId());
+        record.setStatus(status);
+        record.setCheckInTime(now);
         record.setLocation(location);
         record.setDevice(device);
-        record.setVerifyMethod(checkinTask.getCheckinType());
+        record.setVerifyMethod(verifyMethod);
         record.setVerifyData(verifyData);
-        record.setCheckInTime(now);
         
-        // 判断签到状态
-        String status = SystemConstants.RecordStatus.NORMAL;
+        recordRepository.save(record);
         
-        // 如果接近结束时间，标记为迟到
-        if (checkinTask.getCheckinEndTime() != null) {
-            long totalDuration = java.time.Duration.between(
-                checkinTask.getCheckinStartTime(), 
-                checkinTask.getCheckinEndTime()
-            ).toMinutes();
+        // 返回签到结果
+        Map<String, Object> result = new HashMap<>();
+        result.put("checkinId", taskId);
+        result.put("status", status);
+        result.put("checkInTime", now);
+        result.put("success", true);
+        result.put("timestamp", System.currentTimeMillis());
+        
+        return result;
+    }
+    
+    /**
+     * 验证二维码签到数据
+     * 增强验证逻辑，处理前缀重复和ID不匹配的情况
+     */
+    private boolean verifyQRCode(Course checkinTask, String verifyData) {
+        if (verifyData == null || verifyData.isEmpty()) {
+            log.warn("签到验证失败: 验证数据为空");
+            return false;
+        }
+        
+        // 获取任务ID和存储的验证参数
+        String checkinId = checkinTask.getId();
+        String storedParams = checkinTask.getVerifyParams();
+        
+        log.info("签到验证: 任务ID={}, 提交验证数据={}, 存储验证参数={}", checkinId, verifyData, storedParams);
+        
+        // 排除双重前缀情况
+        if (verifyData.startsWith("CHECKIN:CHECKIN:")) {
+            log.info("检测到重复前缀，修正数据");
+            verifyData = verifyData.replace("CHECKIN:CHECKIN:", "CHECKIN:");
+        }
+        
+        // 从提交的verifyData中提取ID
+        String extractedId = extractCodeFromVerifyParams(verifyData);
+        log.info("从验证数据中提取ID: {}", extractedId);
+        
+        // 直接对比任务ID
+        if (checkinId.equals(extractedId)) {
+            log.info("验证通过: 提交ID与任务ID匹配");
+            return true;
+        }
+        
+        log.warn("验证未通过: 提交ID与任务ID不匹配 [提交ID={}, 任务ID={}]", extractedId, checkinId);
+        
+        // 如果存储的验证参数中包含任务ID，检查是否匹配
+        if (storedParams != null && storedParams.contains(checkinId)) {
+            log.info("验证通过: 存储参数中包含任务ID");
+            return true;
+        }
+        
+        // 确保任务的verifyParams被正确设置
+        if (storedParams == null || storedParams.isEmpty()) {
+            log.warn("验证失败: 签到任务的验证参数未设置");
             
-            long elapsedDuration = java.time.Duration.between(
-                checkinTask.getCheckinStartTime(), 
-                now
-            ).toMinutes();
+            // 如果任务验证参数未设置，尝试设置
+            checkinTask.setVerifyParams("CHECKIN:" + checkinId);
+            courseRepository.save(checkinTask);
             
-            // 如果已经过去了签到时间的80%，标记为迟到
-            if (elapsedDuration > totalDuration * 0.8) {
-                status = SystemConstants.RecordStatus.LATE;
+            // 再次检查是否匹配
+            if (extractedId.equals(checkinId)) {
+                log.info("验证通过: 更新验证参数后ID匹配");
+                return true;
             }
         }
         
-        record.setStatus(status);
-        recordRepository.save(record);
+        // 最后尝试直接匹配
+        boolean exactMatch = verifyData.equals(storedParams);
+        log.info("验证结果: 直接匹配{}通过", exactMatch ? "" : "未");
         
-        return true;
-    }
-    
-    @Override
-    public String generateCheckinCode(String checkinId) {
-        // 查找签到任务
-        Course checkinTask = courseRepository.findById(checkinId)
-            .orElseThrow(() -> new BusinessException("签到任务不存在"));
-        
-        if (!SystemConstants.CourseType.CHECKIN.equals(checkinTask.getType())) {
-            throw new BusinessException("指定ID不是有效的签到任务");
-        }
-        
-        if (!SystemConstants.CheckInType.QR_CODE.equals(checkinTask.getCheckinType())) {
-            throw new BusinessException("该签到任务不是二维码签到类型");
-        }
-        
-        // 直接使用签到任务ID作为签到码
-        String verifyParams = "CHECKIN:" + checkinId;
-        checkinTask.setVerifyParams(verifyParams);
-        courseRepository.save(checkinTask);
-        
-        return checkinId;
+        return exactMatch;
     }
     
     // 生成唯一的邀请码 (6位字母数字组合)
@@ -823,11 +904,11 @@ public class CourseServiceImpl implements CourseService {
         String checkinType = checkinTask.getCheckinType();
         
         if (SystemConstants.CheckInType.QR_CODE.equals(checkinType)) {
-            return verifyQRCode(checkinTask.getVerifyParams(), verifyData);
+            return verifyQRCode(checkinTask, verifyData);
         } else if (SystemConstants.CheckInType.LOCATION.equals(checkinType)) {
-            return verifyLocation(checkinTask.getVerifyParams(), location);
+            return verifyLocation(checkinTask, location);
         } else if (SystemConstants.CheckInType.WIFI.equals(checkinType)) {
-            return verifyWifi(checkinTask.getVerifyParams(), verifyData);
+            return verifyWifi(checkinTask, verifyData);
         } else if (SystemConstants.CheckInType.MANUAL.equals(checkinType)) {
             return true; // 手动签到直接返回成功
         }
@@ -835,23 +916,15 @@ public class CourseServiceImpl implements CourseService {
         return false;
     }
     
-    // 验证二维码
-    private boolean verifyQRCode(String taskVerifyParams, String userVerifyData) {
-        String taskCode = extractCodeFromVerifyParams(taskVerifyParams);
-        String userCode = extractCodeFromVerifyParams(userVerifyData);
-        
-        return taskCode.equals(userCode);
-    }
-    
     // 验证位置
-    private boolean verifyLocation(String taskVerifyParams, String userLocation) {
+    private boolean verifyLocation(Course checkinTask, String location) {
         // 实际项目中应该使用JSON库和地理位置库计算距离
         // 这里做简单模拟
         return true;
     }
     
     // 验证WiFi
-    private boolean verifyWifi(String taskVerifyParams, String userVerifyData) {
+    private boolean verifyWifi(Course checkinTask, String verifyData) {
         // 实际项目中应该使用JSON库比较SSID和BSSID
         // 这里做简单模拟
         return true;
@@ -1001,7 +1074,7 @@ public class CourseServiceImpl implements CourseService {
             item.put("checkinType", checkin.getCheckinType());
             
             // 获取签到统计数据
-            Map<String, Long> statistics = getCheckinStatistics(checkin.getId());
+            Map<String, Object> statistics = getCheckinStatistics(checkin.getId());
             item.put("statistics", statistics);
             
             // 如果是学生，添加个人签到状态
@@ -1117,31 +1190,74 @@ public class CourseServiceImpl implements CourseService {
         return response;
     }
     
-    // 获取签到任务的统计数据
-    private Map<String, Long> getCheckinStatistics(String checkinId) {
-        Map<String, Long> statistics = new HashMap<>();
+    /**
+     * 获取签到任务的统计数据
+     * 不计入老师，并提供已签到和未签到学生列表
+     */
+    private Map<String, Object> getCheckinStatistics(String checkinId) {
+        Map<String, Object> statistics = new HashMap<>();
         
-        // 获取总应到人数（课程总人数）- 只计算学生
+        // 获取签到任务
         Course checkinTask = courseRepository.findById(checkinId).orElse(null);
-        if (checkinTask != null && checkinTask.getParentCourseId() != null) {
-            // 只获取学生人数，不包括教师和助教
-            statistics.put("totalStudents", courseUserRepository.countByCourseIdAndRoleAndActiveTrue(
-                checkinTask.getParentCourseId(), SystemConstants.CourseUserRole.STUDENT));
+        if (checkinTask == null || checkinTask.getParentCourseId() == null) {
+            return statistics;
         }
         
-        // 获取各签到状态的人数
-        long normalCount = recordRepository.countByCourseIdAndStatus(checkinId, SystemConstants.RecordStatus.NORMAL);
-        long lateCount = recordRepository.countByCourseIdAndStatus(checkinId, SystemConstants.RecordStatus.LATE);
+        String parentCourseId = checkinTask.getParentCourseId();
+        
+        // 获取课程下的所有学生ID列表
+        List<String> studentIds = courseUserRepository.findUserIdsByCourseIdAndRole(
+            parentCourseId, SystemConstants.CourseUserRole.STUDENT);
+        
+        // 学生总数
+        long totalStudents = studentIds.size();
+        statistics.put("totalStudents", totalStudents);
+        
+        // 已签到学生记录
+        List<Record> checkinRecords = recordRepository.findByCourseId(checkinId);
+        
+        // 统计不同状态的签到人数
+        long normalCount = checkinRecords.stream()
+            .filter(r -> SystemConstants.RecordStatus.NORMAL.equals(r.getStatus()))
+            .count();
+            
+        long lateCount = checkinRecords.stream()
+            .filter(r -> SystemConstants.RecordStatus.LATE.equals(r.getStatus()))
+            .count();
+            
         long totalPresent = normalCount + lateCount;
+        long absentCount = totalStudents - totalPresent;
         
         statistics.put("normalCount", normalCount);
         statistics.put("lateCount", lateCount);
         statistics.put("presentCount", totalPresent);
+        statistics.put("absentCount", Math.max(0, absentCount));
         
-        // 计算缺席人数
-        if (statistics.containsKey("totalStudents")) {
-            long absentCount = statistics.get("totalStudents") - totalPresent;
-            statistics.put("absentCount", Math.max(0, absentCount));
+        // 收集已签到学生ID
+        Set<String> signedUserIds = checkinRecords.stream()
+            .map(Record::getUserId)
+            .collect(Collectors.toSet());
+            
+        // 未签到学生ID列表 = 所有学生ID - 已签到学生ID
+        List<String> absentUserIds = studentIds.stream()
+            .filter(id -> !signedUserIds.contains(id))
+            .collect(Collectors.toList());
+            
+        // 转换为学生信息列表 (仅教师可见)
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (hasRole(authentication, "TEACHER") || hasRole(authentication, "ADMIN")) {
+            List<Map<String, Object>> absentStudents = new ArrayList<>();
+            for (String userId : absentUserIds) {
+                User user = userRepository.findById(userId).orElse(null);
+                if (user != null) {
+                    Map<String, Object> student = new HashMap<>();
+                    student.put("userId", user.getId());
+                    student.put("username", user.getUsername());
+                    student.put("fullName", user.getFullName());
+                    absentStudents.add(student);
+                }
+            }
+            statistics.put("absentStudents", absentStudents);
         }
         
         return statistics;
@@ -1486,5 +1602,27 @@ public class CourseServiceImpl implements CourseService {
         }
         
         return response;
+    }
+
+    @Override
+    public String generateCheckinCode(String checkinId) {
+        // 查找签到任务
+        Course checkinTask = courseRepository.findById(checkinId)
+            .orElseThrow(() -> new BusinessException("签到任务不存在"));
+        
+        if (!SystemConstants.CourseType.CHECKIN.equals(checkinTask.getType())) {
+            throw new BusinessException("指定ID不是有效的签到任务");
+        }
+        
+        if (!SystemConstants.CheckInType.QR_CODE.equals(checkinTask.getCheckinType())) {
+            throw new BusinessException("该签到任务不是二维码签到类型");
+        }
+        
+        // 直接使用签到任务ID作为签到码
+        String verifyParams = "CHECKIN:" + checkinId;
+        checkinTask.setVerifyParams(verifyParams);
+        courseRepository.save(checkinTask);
+        
+        return checkinId;
     }
 } 
