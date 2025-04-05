@@ -94,4 +94,13 @@ public interface RecordRepository extends JpaRepository<Record, String> {
      * @return 签到记录分页结果
      */
     Page<Record> findByParentCourseId(String parentCourseId, Pageable pageable);
+    
+    /**
+     * 统计特定状态的签到记录数量
+     * 
+     * @param courseId 签到任务ID
+     * @param status 签到状态
+     * @return 记录数量
+     */
+    long countByCourseIdAndStatus(String courseId, String status);
 } 

@@ -163,6 +163,9 @@ public class UserServiceImpl implements UserService {
         // 获取课程用户关系列表
         List<CourseUser> allCourseUsers = courseUserRepository.findByCourseIdAndActiveTrue(courseId);
         
+        // 按加入时间降序排序
+        allCourseUsers.sort((a, b) -> b.getJoinedAt().compareTo(a.getJoinedAt()));
+        
         // 手动分页（由于没有直接的分页方法）
         int start = (int) pageable.getOffset();
         int end = Math.min((start + pageable.getPageSize()), allCourseUsers.size());

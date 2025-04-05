@@ -144,4 +144,22 @@ public interface CourseUserRepository extends JpaRepository<CourseUser, String> 
      */
     @Query("SELECT COUNT(cu) > 0 FROM CourseUser cu JOIN User u ON cu.userId = u.id WHERE cu.courseId = :courseId AND u.username = :username AND cu.active = true")
     boolean existsByCourseIdAndUsernameAndActiveTrue(@Param("courseId") String courseId, @Param("username") String username);
+    
+    /**
+     * 检查用户是否为活跃的课程成员
+     *
+     * @param courseId 课程ID
+     * @param userId 用户ID
+     * @return 是否为活跃成员
+     */
+    boolean existsByCourseIdAndUserIdAndActiveTrue(String courseId, String userId);
+    
+    /**
+     * 统计课程中特定角色的活跃成员数量
+     *
+     * @param courseId 课程ID
+     * @param role 角色
+     * @return 活跃成员数量
+     */
+    long countByCourseIdAndRoleAndActiveTrue(String courseId, String role);
 }

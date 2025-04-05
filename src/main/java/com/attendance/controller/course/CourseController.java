@@ -31,6 +31,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.attendance.model.entity.Course;
+
 /**
  * 课程控制器
  */
@@ -108,28 +110,81 @@ public class CourseController {
      */
     @GetMapping("/list")
     public ApiResponse<Map<String, Object>> getMyCourses(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(required = false, defaultValue = "0") Integer page,
+            @RequestParam(required = false, defaultValue = "10") Integer size) {
+        if (page == null || page < 0) {
+            throw new BusinessException("页码不能为空或负数");
+        }
+        if (size == null || size <= 0 || size > 100) {
+            throw new BusinessException("每页大小必须在1-100之间");
+        }
+        
         log.info("获取我的课程列表: page={}, size={}", page, size);
         Map<String, Object> response = courseService.getMyCourses(page, size);
         return ApiResponse.success(response);
     }
     
     /**
-     * 获取课程下的所有签到任务
+     * 获取课程下的所有签到任务列表
      * 
      * @param courseId 课程ID
      * @param page 页码
      * @param size 每页大小
      * @return 签到任务列表
      */
-    @GetMapping("/{courseId}/checkins")
-    public ApiResponse<Map<String, Object>> getCourseCheckinTasks(
-            @PathVariable String courseId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        log.info("获取课程下的签到任务: courseId={}, page={}, size={}", courseId, page, size);
-        Map<String, Object> response = courseService.getCourseCheckinTasks(courseId, page, size);
+    @GetMapping("/attendance/list")
+    public ApiResponse<Map<String, Object>> getAttendanceList(
+            @RequestParam String courseId,
+            @RequestParam(required = false, defaultValue = "0") Integer page,
+            @RequestParam(required = false, defaultValue = "10") Integer size) {
+        if (page == null || page < 0) {
+            throw new BusinessException("页码不能为空或负数");
+        }
+        if (size == null || size <= 0 || size > 100) {
+            throw new BusinessException("每页大小必须在1-100之间");
+        }
+        
+        log.info("获取课程签到任务列表: courseId={}, page={}, size={}", courseId, page, size);
+        Map<String, Object> response = courseService.getAttendanceList(courseId, page, size);
+        return ApiResponse.success(response);
+    }
+    
+    /**
+     * 获取课程的签到统计信息
+     * 
+     * @param courseId 课程ID
+     * @return 课程签到统计信息
+     */
+    @GetMapping("/attendance/detail")
+    public ApiResponse<Map<String, Object>> getCourseAttendanceDetail(
+            @RequestParam String courseId) {
+        log.info("获取课程签到统计: courseId={}", courseId);
+        Map<String, Object> response = courseService.getCourseAttendanceDetail(courseId);
+        return ApiResponse.success(response);
+    }
+    
+    /**
+     * 获取单个签到任务的详细信息（教师看到学生签到统计，学生看到自己的签到状态）
+     * 
+     * @param checkinId 签到任务ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 签到任务详情
+     */
+    @GetMapping("/attendance/details")
+    public ApiResponse<Map<String, Object>> getCheckinDetails(
+            @RequestParam String checkinId,
+            @RequestParam(required = false, defaultValue = "0") Integer page,
+            @RequestParam(required = false, defaultValue = "10") Integer size) {
+        if (page == null || page < 0) {
+            throw new BusinessException("页码不能为空或负数");
+        }
+        if (size == null || size <= 0 || size > 100) {
+            throw new BusinessException("每页大小必须在1-100之间");
+        }
+        
+        log.info("获取签到任务详情: checkinId={}, page={}, size={}", checkinId, page, size);
+        Map<String, Object> response = courseService.getCheckinDetails(checkinId, page, size);
         return ApiResponse.success(response);
     }
     
@@ -157,8 +212,15 @@ public class CourseController {
     @GetMapping("/members/list")
     public ApiResponse<Map<String, Object>> getCourseMembers(
             @RequestParam String courseId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(required = false, defaultValue = "0") Integer page,
+            @RequestParam(required = false, defaultValue = "10") Integer size) {
+        if (page == null || page < 0) {
+            throw new BusinessException("页码不能为空或负数");
+        }
+        if (size == null || size <= 0 || size > 100) {
+            throw new BusinessException("每页大小必须在1-100之间");
+        }
+        
         log.info("获取课程成员列表: courseId={}, page={}, size={}", courseId, page, size);
         Map<String, Object> response = userService.getCourseUsers(courseId, page, size);
         return ApiResponse.success(response);
@@ -281,23 +343,89 @@ public class CourseController {
                 throw new BusinessException("课程不存在");
             }
             
-            // 生成邀请链接
-            String inviteUrl = "attendance://join?code=" + course.getCode();
+            // 直接使用邀请码作为二维码内容，与签到二维码保持一致
+            String inviteCode = course.getCode();
             
             // 创建二维码
             QRCodeWriter qrCodeWriter = new QRCodeWriter();
             Map<EncodeHintType, Object> hints = new HashMap<>();
-            hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.L);
+            hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H); // 提高错误校正级别
             hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
             hints.put(EncodeHintType.MARGIN, 1);
             
-            BitMatrix bitMatrix = qrCodeWriter.encode(inviteUrl, BarcodeFormat.QR_CODE, 250, 250, hints);
+            BitMatrix bitMatrix = qrCodeWriter.encode(inviteCode, BarcodeFormat.QR_CODE, 300, 300, hints);
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             MatrixToImageWriter.writeToStream(bitMatrix, "PNG", outputStream);
             
             return outputStream.toByteArray();
         } catch (Exception e) {
+            log.error("生成课程邀请二维码失败", e);
             throw new BusinessException("生成二维码失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取签到任务的签到记录列表
+     * 
+     * @param checkinId 签到任务ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 签到记录列表
+     */
+    @GetMapping("/records/list")
+    @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
+    public ApiResponse<Map<String, Object>> getCheckinRecords(
+            @RequestParam String checkinId,
+            @RequestParam(required = false, defaultValue = "0") Integer page,
+            @RequestParam(required = false, defaultValue = "10") Integer size) {
+        if (page == null || page < 0) {
+            throw new BusinessException("页码不能为空或负数");
+        }
+        if (size == null || size <= 0 || size > 100) {
+            throw new BusinessException("每页大小必须在1-100之间");
+        }
+        
+        log.info("获取签到记录: checkinId={}, page={}, size={}", checkinId, page, size);
+        Map<String, Object> response = courseService.getCheckinRecords(checkinId, page, size);
+        return ApiResponse.success(response);
+    }
+    
+    /**
+     * 获取签到二维码图片(直接返回图片数据)
+     * 
+     * @param checkinId 签到任务ID
+     * @return 二维码图片
+     */
+    @GetMapping(value = "/attendance/qrcode", produces = "image/png")
+    @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
+    public byte[] generateCheckinQRCode(@RequestParam String checkinId) {
+        log.info("生成签到二维码: 任务ID={}", checkinId);
+        
+        try {
+            // 验证签到任务是否存在
+            CourseDTO checkinTask = courseService.getCourse(checkinId);
+            if (checkinTask == null || !SystemConstants.CourseType.CHECKIN.equals(checkinTask.getType())) {
+                throw new BusinessException("签到任务不存在");
+            }
+            
+            // 获取签到码 - 直接使用任务ID
+            String checkinContent = "CHECKIN:" + checkinId;
+            
+            // 创建二维码
+            QRCodeWriter qrCodeWriter = new QRCodeWriter();
+            Map<EncodeHintType, Object> hints = new HashMap<>();
+            hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H);
+            hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
+            hints.put(EncodeHintType.MARGIN, 1);
+            
+            BitMatrix bitMatrix = qrCodeWriter.encode(checkinContent, BarcodeFormat.QR_CODE, 300, 300, hints);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            MatrixToImageWriter.writeToStream(bitMatrix, "PNG", outputStream);
+            
+            return outputStream.toByteArray();
+        } catch (Exception e) {
+            log.error("生成签到二维码失败", e);
+            throw new BusinessException("生成签到二维码失败: " + e.getMessage());
         }
     }
     

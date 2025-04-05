@@ -166,4 +166,64 @@ public interface CourseService {
      * @return 签到码
      */
     String generateCheckinCode(String checkinId);
+    
+    /**
+     * 获取签到任务的签到记录（带分页）
+     *
+     * @param checkinId 签到任务ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 签到记录分页数据
+     */
+    Map<String, Object> getCheckinRecords(String checkinId, int page, int size);
+    
+    /**
+     * 获取课程的所有签到统计（带分页）
+     *
+     * @param courseId 课程ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 签到统计分页数据
+     */
+    Map<String, Object> getCourseAttendanceStats(String courseId, int page, int size);
+    
+    /**
+     * 获取签到任务详情
+     * 教师可以看到学生签到统计，学生只能看到自己的签到状态
+     *
+     * @param checkinId 签到任务ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 签到任务详情
+     */
+    Map<String, Object> getCheckinDetail(String checkinId, int page, int size);
+    
+    /**
+     * 获取课程的所有签到任务列表（带分页）
+     *
+     * @param courseId 课程ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 签到任务分页数据
+     */
+    Map<String, Object> getAttendanceList(String courseId, int page, int size);
+    
+    /**
+     * 获取课程的签到统计信息
+     *
+     * @param courseId 课程ID
+     * @return 课程签到统计信息
+     */
+    Map<String, Object> getCourseAttendanceDetail(String courseId);
+    
+    /**
+     * 获取签到任务详情
+     * 教师可以看到学生签到统计，学生只能看到自己的签到状态
+     *
+     * @param checkinId 签到任务ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 签到任务详情
+     */
+    Map<String, Object> getCheckinDetails(String checkinId, int page, int size);
 } 
