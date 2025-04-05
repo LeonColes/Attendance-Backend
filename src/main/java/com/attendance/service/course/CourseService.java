@@ -2,6 +2,7 @@ package com.attendance.service.course;
 
 import com.attendance.model.dto.course.CourseDTO;
 import com.attendance.model.dto.course.CourseUserDTO;
+import com.attendance.model.dto.course.CourseRecordDTO;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -149,16 +150,27 @@ public interface CourseService {
     boolean removeCourseMember(String courseId, String userId, String reason);
     
     /**
-     * 提交签到
+     * 提交签到（新版）
      *
-     * @param taskId 签到任务ID
-     * @param verifyData 验证数据
+     * @param courseId 签到任务ID
      * @param verifyMethod 验证方法
      * @param location 位置
      * @param device 设备信息
-     * @return 签到结果信息
+     * @param verifyData 验证数据
+     * @return 签到记录DTO
      */
-    Map<String, Object> submitCheckin(String taskId, String verifyData, String verifyMethod, String location, String device);
+    CourseRecordDTO submitCheckIn(String courseId, String verifyMethod, String location, String device, String verifyData);
+    
+    /**
+     * 获取用户在课程中的所有签到记录
+     *
+     * @param courseId 课程ID
+     * @param userId 用户ID（可选，不提供则查询当前用户）
+     * @param page 页码
+     * @param size 每页大小
+     * @return 签到记录数据
+     */
+    Map<String, Object> getUserCourseRecords(String courseId, String userId, int page, int size);
     
     /**
      * 获取签到码
@@ -235,4 +247,45 @@ public interface CourseService {
      * @return 统计信息
      */
     Map<String, Object> getCourseStatistics(String courseId);
+    
+    /**
+     * 获取签到任务详情(老师视角)
+     * 老师查看特定签到任务的所有学生签到记录
+     *
+     * @param checkinId 签到任务ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 签到任务详情和签到记录
+     */
+    Map<String, Object> getCheckinTeacherView(String checkinId, int page, int size);
+    
+    /**
+     * 获取签到任务详情(学生视角)
+     * 学生查看自己在课程中所有签到任务的签到状态
+     *
+     * @param courseId 课程ID
+     * @return 学生的签到状态列表
+     */
+    Map<String, Object> getCheckinStudentView(String courseId);
+    
+    /**
+     * 获取签到任务统计信息
+     * 包括已签到和未签到学生名单和数量统计
+     *
+     * @param checkinId 签到任务ID
+     * @return 签到统计信息
+     */
+    Map<String, Object> getCheckinStatistics(String checkinId);
+    
+    /**
+     * 提交签到（旧版）
+     *
+     * @param taskId 签到任务ID
+     * @param verifyData 验证数据
+     * @param verifyMethod 验证方法
+     * @param location 位置
+     * @param device 设备信息
+     * @return 签到结果信息
+     */
+    Map<String, Object> submitCheckin(String taskId, String verifyData, String verifyMethod, String location, String device);
 } 

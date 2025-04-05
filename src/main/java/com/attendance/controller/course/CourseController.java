@@ -3,10 +3,12 @@ package com.attendance.controller.course;
 import com.attendance.common.constants.SystemConstants;
 import com.attendance.common.exception.BusinessException;
 import com.attendance.common.model.ApiResponse;
+import com.attendance.common.model.PageRequestDTO;
 import com.attendance.model.dto.course.CourseDTO;
 import com.attendance.model.dto.course.CourseUserDTO;
 import com.attendance.model.dto.course.CreateCourseRequest;
 import com.attendance.model.dto.course.CreateAttendanceRequest;
+import com.attendance.model.dto.course.CourseRecordDTO;
 import com.attendance.service.course.CourseService;
 import com.attendance.service.user.UserService;
 import com.google.zxing.BarcodeFormat;
@@ -100,23 +102,13 @@ public class CourseController {
     /**
      * 获取用户所有课程（老师只能看自己创建的，学生只能看自己加入的）
      * 
-     * @param page 页码
-     * @param size 每页大小
+     * @param requestDTO 分页请求参数
      * @return 课程列表
      */
-    @GetMapping("/list")
-    public ApiResponse<Map<String, Object>> getMyCourses(
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false, defaultValue = "10") Integer size) {
-        if (page == null || page < 0) {
-            throw new BusinessException("页码不能为空或负数");
-        }
-        if (size == null || size <= 0 || size > 100) {
-            throw new BusinessException("每页大小必须在1-100之间");
-        }
-        
-        log.info("获取我的课程列表: page={}, size={}", page, size);
-        Map<String, Object> response = courseService.getMyCourses(page, size);
+    @PostMapping("/list")
+    public ApiResponse<Map<String, Object>> getMyCourses(@Valid @RequestBody PageRequestDTO requestDTO) {
+        log.info("获取我的课程列表: page={}, size={}", requestDTO.getPage(), requestDTO.getSize());
+        Map<String, Object> response = courseService.getMyCourses(requestDTO.getPage(), requestDTO.getSize());
         return ApiResponse.success(response);
     }
     
@@ -124,24 +116,17 @@ public class CourseController {
      * 获取课程下的所有签到任务列表
      * 
      * @param courseId 课程ID
-     * @param page 页码
-     * @param size 每页大小
+     * @param requestDTO 分页请求参数
      * @return 签到任务列表
      */
-    @GetMapping("/attendance/list")
+    @PostMapping("/attendance/list")
     public ApiResponse<Map<String, Object>> getAttendanceList(
             @RequestParam String courseId,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false, defaultValue = "10") Integer size) {
-        if (page == null || page < 0) {
-            throw new BusinessException("页码不能为空或负数");
-        }
-        if (size == null || size <= 0 || size > 100) {
-            throw new BusinessException("每页大小必须在1-100之间");
-        }
-        
-        log.info("获取课程签到任务列表: courseId={}, page={}, size={}", courseId, page, size);
-        Map<String, Object> response = courseService.getAttendanceList(courseId, page, size);
+            @Valid @RequestBody PageRequestDTO requestDTO) {
+        log.info("获取课程签到任务列表: courseId={}, page={}, size={}", 
+            courseId, requestDTO.getPage(), requestDTO.getSize());
+        Map<String, Object> response = courseService.getAttendanceList(
+            courseId, requestDTO.getPage(), requestDTO.getSize());
         return ApiResponse.success(response);
     }
     
@@ -163,24 +148,17 @@ public class CourseController {
      * 获取单个签到任务的详细信息（教师看到学生签到统计，学生看到自己的签到状态）
      * 
      * @param checkinId 签到任务ID
-     * @param page 页码
-     * @param size 每页大小
+     * @param requestDTO 分页请求参数
      * @return 签到任务详情
      */
-    @GetMapping("/attendance/details")
+    @PostMapping("/attendance/details")
     public ApiResponse<Map<String, Object>> getCheckinDetails(
             @RequestParam String checkinId,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false, defaultValue = "10") Integer size) {
-        if (page == null || page < 0) {
-            throw new BusinessException("页码不能为空或负数");
-        }
-        if (size == null || size <= 0 || size > 100) {
-            throw new BusinessException("每页大小必须在1-100之间");
-        }
-        
-        log.info("获取签到任务详情: checkinId={}, page={}, size={}", checkinId, page, size);
-        Map<String, Object> response = courseService.getCheckinDetails(checkinId, page, size);
+            @Valid @RequestBody PageRequestDTO requestDTO) {
+        log.info("获取签到任务详情: checkinId={}, page={}, size={}", 
+            checkinId, requestDTO.getPage(), requestDTO.getSize());
+        Map<String, Object> response = courseService.getCheckinDetails(
+            checkinId, requestDTO.getPage(), requestDTO.getSize());
         return ApiResponse.success(response);
     }
     
@@ -201,24 +179,18 @@ public class CourseController {
      * 获取课程成员列表
      * 
      * @param courseId 课程ID
-     * @param page 页码
-     * @param size 每页大小
+     * @param requestDTO 分页请求参数
      * @return 成员列表
      */
-    @GetMapping("/members/list")
+    @PostMapping("/members")
+    @PreAuthorize("@courseSecurityService.isCourseCreator(#courseId) or hasRole('ADMIN')")
     public ApiResponse<Map<String, Object>> getCourseMembers(
             @RequestParam String courseId,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false, defaultValue = "10") Integer size) {
-        if (page == null || page < 0) {
-            throw new BusinessException("页码不能为空或负数");
-        }
-        if (size == null || size <= 0 || size > 100) {
-            throw new BusinessException("每页大小必须在1-100之间");
-        }
-        
-        log.info("获取课程成员列表: courseId={}, page={}, size={}", courseId, page, size);
-        Map<String, Object> response = userService.getCourseUsers(courseId, page, size);
+            @Valid @RequestBody PageRequestDTO requestDTO) {
+        log.info("获取课程成员: courseId={}, page={}, size={}", 
+            courseId, requestDTO.getPage(), requestDTO.getSize());
+        Map<String, Object> response = userService.getCourseUsers(
+            courseId, requestDTO.getPage(), requestDTO.getSize());
         return ApiResponse.success(response);
     }
     
@@ -248,82 +220,42 @@ public class CourseController {
     }
     
     /**
-     * 学生提交签到
+     * 提交签到
      * 
      * @param request 签到请求
      * @return 签到结果
      */
-    @PostMapping("/attendance/signin")
-    public ApiResponse<CheckinResponse> submitCheckin(@Valid @RequestBody SubmitCheckinRequest request) {
-        log.info("提交签到: 请求={}", request);
-        
-        Map<String, Object> result = courseService.submitCheckin(
-            request.getTaskId(),
-            request.getVerifyData(),
-            request.getVerifyMethod(),
-            request.getLocation(),
-            request.getDevice()
+    @PostMapping("/attendance/check-in")
+    public ApiResponse<CourseRecordDTO> submitCheckIn(@Valid @RequestBody CheckInRequest request) {
+        log.info("提交签到: courseId={}, verifyMethod={}", request.getCourseId(), request.getVerifyMethod());
+        CourseRecordDTO record = courseService.submitCheckIn(
+                request.getCourseId(),
+                request.getVerifyMethod(),
+                request.getLocation(),
+                request.getDevice(),
+                request.getVerifyData()
         );
-        
-        CheckinResponse response = new CheckinResponse();
-        response.setCheckinId(request.getTaskId());
-        response.setSuccess((Boolean) result.getOrDefault("success", false));
-        response.setTimestamp(System.currentTimeMillis());
-        
-        String message = (Boolean) result.getOrDefault("success", false) ? "签到成功" : "签到失败";
-        return ApiResponse.success(message, response);
+        return ApiResponse.success("签到成功", record);
     }
     
     /**
-     * 根据签到类型生成签到二维码内容
+     * 获取用户在课程中的所有签到记录
      * 
-     * @param checkinId 签到任务ID
-     * @return 签到码
+     * @param courseId 课程ID
+     * @param userId 用户ID（可选，不传则查当前用户）
+     * @param requestDTO 分页请求参数
+     * @return 签到记录列表
      */
-    @GetMapping("/attendance/code")
-    @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
-    public ApiResponse<CheckinCodeResponse> generateCheckinCode(@RequestParam String checkinId) {
-        log.info("生成签到二维码: 任务ID={}", checkinId);
-        
-        String checkinCode = courseService.generateCheckinCode(checkinId);
-        
-        CheckinCodeResponse response = new CheckinCodeResponse();
-        response.setCheckinId(checkinId);
-        response.setCode(checkinCode);
-        response.setTimestamp(System.currentTimeMillis());
-        
-        return ApiResponse.success("生成签到码成功", response);
-    }
-    
-    /**
-     * 结束签到任务
-     * 
-     * @param checkinId 签到任务ID
-     * @return 结果
-     */
-    @PostMapping("/attendance/end")
-    @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
-    public ApiResponse<CourseDTO> endCheckinTask(@RequestParam String checkinId) {
-        log.info("结束签到任务: 任务ID={}", checkinId);
-        
-        CourseDTO courseDTO = courseService.updateCourseStatus(checkinId, SystemConstants.TaskStatus.ENDED);
-        return ApiResponse.success("签到任务已结束", courseDTO);
-    }
-    
-    /**
-     * 移除课程成员
-     * 
-     * @param request 移除成员请求
-     * @return 结果
-     */
-    @PostMapping("/members/remove")
-    @PreAuthorize("@courseSecurityService.isCourseCreator(#request.courseId) or hasRole('ADMIN')")
-    public ApiResponse<String> removeCourseMembers(@Valid @RequestBody RemoveMemberRequest request) {
-        log.info("移除课程成员: 请求={}", request);
-        
-        boolean success = courseService.removeCourseMember(request.getCourseId(), request.getUserId(), request.getReason());
-        
-        return ApiResponse.success(success ? "成功移除成员" : "移除成员失败");
+    @PostMapping("/attendance/user/records")
+    public ApiResponse<Map<String, Object>> getUserCourseRecords(
+            @RequestParam String courseId,
+            @RequestParam(required = false) String userId,
+            @Valid @RequestBody PageRequestDTO requestDTO) {
+        log.info("获取用户课程签到记录: courseId={}, userId={}, page={}, size={}", 
+            courseId, userId, requestDTO.getPage(), requestDTO.getSize());
+        Map<String, Object> response = courseService.getUserCourseRecords(
+            courseId, userId, requestDTO.getPage(), requestDTO.getSize());
+        return ApiResponse.success(response);
     }
     
     /**
@@ -341,7 +273,7 @@ public class CourseController {
                 throw new BusinessException("课程不存在");
             }
             
-            // 直接使用邀请码作为二维码内容，与签到二维码保持一致
+            // 直接使用邀请码作为二维码内容
             String inviteCode = course.getCode();
             
             // 创建二维码
@@ -360,32 +292,6 @@ public class CourseController {
             log.error("生成课程邀请二维码失败", e);
             throw new BusinessException("生成二维码失败: " + e.getMessage());
         }
-    }
-    
-    /**
-     * 获取签到任务的签到记录列表
-     * 
-     * @param checkinId 签到任务ID
-     * @param page 页码
-     * @param size 每页大小
-     * @return 签到记录列表
-     */
-    @GetMapping("/records/list")
-    @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
-    public ApiResponse<Map<String, Object>> getCheckinRecords(
-            @RequestParam String checkinId,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false, defaultValue = "10") Integer size) {
-        if (page == null || page < 0) {
-            throw new BusinessException("页码不能为空或负数");
-        }
-        if (size == null || size <= 0 || size > 100) {
-            throw new BusinessException("每页大小必须在1-100之间");
-        }
-        
-        log.info("获取签到记录: checkinId={}, page={}, size={}", checkinId, page, size);
-        Map<String, Object> response = courseService.getCheckinRecords(checkinId, page, size);
-        return ApiResponse.success(response);
     }
     
     /**
@@ -425,6 +331,54 @@ public class CourseController {
             log.error("生成签到二维码失败", e);
             throw new BusinessException("生成签到二维码失败: " + e.getMessage());
         }
+    }
+    
+    /**
+     * 获取签到记录（教师视角）
+     * 
+     * @param checkinId 签到任务ID
+     * @param requestDTO 分页请求参数
+     * @return 签到记录
+     */
+    @PostMapping("/attendance/records")
+    @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
+    public ApiResponse<Map<String, Object>> getCheckinRecords(
+            @RequestParam String checkinId,
+            @Valid @RequestBody PageRequestDTO requestDTO) {
+        log.info("获取签到记录(老师视角): checkinId={}, page={}, size={}", 
+            checkinId, requestDTO.getPage(), requestDTO.getSize());
+        Map<String, Object> response = courseService.getCheckinTeacherView(
+            checkinId, requestDTO.getPage(), requestDTO.getSize());
+        return ApiResponse.success(response);
+    }
+    
+    /**
+     * 获取我的签到记录
+     * （学生视角：查看自己在所有签到任务的状态）
+     * 
+     * @param courseId 课程ID
+     * @return 签到记录列表
+     */
+    @GetMapping("/attendance/mystatus")
+    public ApiResponse<Map<String, Object>> getMyCheckinStatus(@RequestParam String courseId) {
+        log.info("获取我的签到记录(学生视角): courseId={}", courseId);
+        Map<String, Object> response = courseService.getCheckinStudentView(courseId);
+        return ApiResponse.success(response);
+    }
+    
+    /**
+     * 获取签到任务统计信息
+     * （老师视角：统计已签到和未签到学生情况）
+     * 
+     * @param checkinId 签到任务ID
+     * @return 签到统计信息
+     */
+    @GetMapping("/attendance/stats")
+    @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
+    public ApiResponse<Map<String, Object>> getCheckinStatistics(@RequestParam String checkinId) {
+        log.info("获取签到统计信息: checkinId={}", checkinId);
+        Map<String, Object> response = courseService.getCheckinStatistics(checkinId);
+        return ApiResponse.success(response);
     }
     
     /**
@@ -513,25 +467,20 @@ public class CourseController {
     }
     
     /**
-     * 提交签到请求
+     * 签到请求
      */
     @Data
-    public static class SubmitCheckinRequest {
+    public static class CheckInRequest {
         /**
          * 签到任务ID
          */
         @NotBlank(message = "签到任务ID不能为空")
-        private String taskId;
+        private String courseId;
         
         /**
-         * 签到验证数据
+         * 验证方式
          */
-        private String verifyData;
-        
-        /**
-         * 签到方式
-         */
-        @NotBlank(message = "签到方式不能为空")
+        @NotBlank(message = "验证方式不能为空")
         private String verifyMethod;
         
         /**
@@ -543,47 +492,10 @@ public class CourseController {
          * 设备信息
          */
         private String device;
-    }
-    
-    /**
-     * 签到响应
-     */
-    @Data
-    public static class CheckinResponse {
-        /**
-         * 签到任务ID
-         */
-        private String checkinId;
         
         /**
-         * 是否成功
+         * 验证数据
          */
-        private boolean success;
-        
-        /**
-         * 时间戳
-         */
-        private long timestamp;
-    }
-    
-    /**
-     * 签到码响应
-     */
-    @Data
-    public static class CheckinCodeResponse {
-        /**
-         * 签到任务ID
-         */
-        private String checkinId;
-        
-        /**
-         * 签到码
-         */
-        private String code;
-        
-        /**
-         * 时间戳
-         */
-        private long timestamp;
+        private String verifyData;
     }
 } 

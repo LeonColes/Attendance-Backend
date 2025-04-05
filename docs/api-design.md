@@ -6,8 +6,8 @@
 所有API均以 `/api` 为前缀。
 
 ### 请求方法
-- **GET**: 获取资源
-- **POST**: 创建资源、执行操作或更新资源
+- **GET**: 获取资源（单个资源或不需要分页的简单查询）
+- **POST**: 创建资源、执行操作或复杂查询（包括分页查询）
 
 ### 响应格式
 所有API响应均使用JSON格式，包含以下字段：
@@ -19,29 +19,39 @@
 }
 ```
 
-### 分页格式
+### 分页请求格式
+所有分页查询统一使用POST方法，请求体格式如下：
+```json
+{
+  "page": 0,             // 页码(从0开始)，默认0
+  "size": 10,            // 每页大小，默认10，最大100
+  "sort": [              // 排序字段(可选)
+    {
+      "field": "createdAt", 
+      "direction": "DESC"  // ASC或DESC
+    }
+  ],
+  "filters": {           // 过滤条件(可选)
+    "key1": "value1",
+    "key2": "value2"
+  }
+}
+```
+
+### 分页响应格式
 分页查询返回格式：
 ```json
 {
   "code": 200,
   "message": "查询成功",
   "data": {
-    "content": [],        // 当前页数据
-    "totalElements": 100, // 总记录数
-    "totalPages": 10,     // 总页数
-    "size": 10,           // 每页大小
-    "number": 0,          // 当前页码(从0开始)
-    "first": true,        // 是否为第一页
-    "last": false,        // 是否为最后一页
-    "empty": false        // 是否为空结果
+    "items": [],          // 当前页数据
+    "totalItems": 100,    // 总记录数
+    "totalPages": 10,     // 总页数 
+    "currentPage": 0,     // 当前页码(从0开始)
   }
 }
 ```
-
-### 分页参数
-所有列表查询支持以下分页参数：
-- `page`: 页码(从0开始)，默认0
-- `size`: 每页大小，默认10，最大100
 
 ### 错误码
 - 200: 成功
@@ -120,15 +130,46 @@ sequenceDiagram
     课程服务-->>学生客户端: 签到结果
 ```
 
+## API列表
+
+### 用户认证
+| 方法 | 路径 | 说明 | 角色 |
+| ---- | ---- | ---- | ---- |
+| POST | /api/auth/login | 用户登录 | 所有用户 |
+| POST | /api/auth/register | 用户注册 | 所有用户 |
+| GET | /api/users/current | 获取当前用户信息 | 已登录用户 |
+
+### 课程管理
+| 方法 | 路径 | 说明 | 角色 |
+| ---- | ---- | ---- | ---- |
+| POST | /api/courses/list | 获取课程列表 | 已登录用户 |
+| POST | /api/courses/create | 创建课程 | 教师、管理员 |
+| GET | /api/courses/detail | 获取课程详情 | 已登录用户 |
+| GET | /api/courses/qrcode | 获取课程邀请码二维码 | 课程创建者、管理员 |
+| POST | /api/courses/members | 获取课程成员列表 | 课程创建者、管理员 |
+| POST | /api/courses/members/add | 添加课程成员 | 课程创建者、管理员 |
+| POST | /api/courses/members/join | 通过邀请码加入课程 | 已登录用户 |
+
+### 签到管理
+| 方法 | 路径 | 说明 | 角色 |
+| ---- | ---- | ---- | ---- |
+| POST | /api/courses/attendance/list | 获取签到任务列表 | 课程成员 |
+| POST | /api/courses/attendance/create | 创建签到任务 | 课程创建者、管理员 |
+| GET | /api/courses/attendance/detail | 获取课程签到统计信息 | 课程成员 |
+| POST | /api/courses/attendance/details | 获取签到任务详情 | 课程成员 |
+| GET | /api/courses/attendance/qrcode | 获取签到任务二维码 | 课程创建者、管理员 |
+| POST | /api/courses/attendance/check-in | 提交签到 | 课程成员 |
+| POST | /api/courses/attendance/records | 获取签到记录(教师视角) | 课程创建者、管理员 |
+| GET | /api/courses/attendance/mystatus | 获取我的签到记录(学生视角) | 课程成员 |
+| GET | /api/courses/attendance/stats | 获取签到任务统计信息 | 课程创建者、管理员 |
+| POST | /api/courses/attendance/user/records | 获取用户课程签到记录 | 课程成员 |
+
 ## API概览列表
 
 ### 认证与用户API
 
 | 接口 | 方法 | URL | 描述 |
 |------|------|-----|------|
-| 用户登录 | POST | /api/auth/login | 登录系统获取JWT令牌 |
-| 用户注册 | POST | /api/auth/register | 注册新用户 |
-| 获取当前用户信息 | GET | /api/users/current | 获取当前登录用户信息 |
 | 获取用户列表 | GET | /api/users/list | 获取用户列表(分页) |
 | 获取用户详情 | GET | /api/users/detail | 获取指定用户详情 |
 | 更新用户信息 | POST | /api/users/update | 更新用户信息 |
@@ -137,7 +178,6 @@ sequenceDiagram
 
 | 接口 | 方法 | URL | 描述 |
 |------|------|-----|------|
-| 创建课程 | POST | /api/courses/create | 创建新课程 |
 | 获取课程列表 | GET | /api/courses/list | 获取所有课程(分页) |
 | 获取我的课程 | GET | /api/courses/my-list | 获取当前用户的课程(分页) |
 | 获取课程详情 | GET | /api/courses/detail | 获取课程详细信息 |

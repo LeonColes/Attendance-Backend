@@ -1,4 +1,4 @@
-package com.attendance.model.dto.record;
+package com.attendance.model.dto.course;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,14 +8,14 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 签到记录DTO
+ * 课程签到记录DTO
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RecordDTO {
-    
+public class CourseRecordDTO {
+
     /**
      * 记录ID
      */
@@ -27,32 +27,32 @@ public class RecordDTO {
     private String userId;
     
     /**
-     * 用户名（冗余字段，便于前端展示）
+     * 用户名
      */
     private String username;
     
     /**
-     * 用户全名（冗余字段，便于前端展示）
+     * 用户姓名
      */
-    private String userFullName;
+    private String fullName;
     
     /**
-     * 签到任务ID (关联Course表，type=CHECKIN的记录)
+     * 签到任务ID
      */
     private String courseId;
     
     /**
-     * 签到任务名称（冗余字段，便于前端展示）
+     * 签到任务名称
      */
     private String courseName;
     
     /**
-     * 所属课程ID (签到任务所属的课程ID)
+     * 父课程ID
      */
     private String parentCourseId;
     
     /**
-     * 所属课程名称（冗余字段，便于前端展示）
+     * 父课程名称
      */
     private String parentCourseName;
     
@@ -80,6 +80,16 @@ public class RecordDTO {
      * 验证方式
      */
     private String verifyMethod;
+    
+    /**
+     * 备注
+     */
+    private String remark;
+    
+    /**
+     * 是否有效
+     */
+    private boolean active;
     
     /**
      * 创建时间

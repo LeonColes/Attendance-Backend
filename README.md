@@ -8,9 +8,12 @@
 
 ```mermaid
 flowchart TD
-    A[客户端应用] --> B[控制器层\nController Layer]
-    B --> C[服务层\nService Layer]
-    C --> D[仓库层\nRepository Layer]
+    A[客户端应用] --> B[控制器层
+      Controller Layer]
+    B --> C[服务层
+      Service Layer]
+    C --> D[仓库层
+      Repository Layer]
     D --> E[数据库\nDatabase]
     
     classDef clientStyle fill:#f9f9f9,stroke:#333,stroke-width:2px
@@ -25,10 +28,20 @@ flowchart TD
     class D repoStyle
     class E dbStyle
     
-    B -.-> F[接收请求\n参数校验\n路由分发\n响应封装]
-    C -.-> G[业务逻辑\n事务管理\n规则实现\n数据转换]
-    D -.-> H[数据访问\nORM映射\n查询构建\n持久化操作]
-    E -.-> I[MySQL数据存储\nRedis缓存]
+    B -.-> F[接收请求
+      参数校验
+      路由分发
+      响应封装]
+    C -.-> G[业务逻辑
+      事务管理
+      规则实现
+      数据转换]
+    D -.-> H[数据访问
+      ORM映射
+      查询构建
+      持久化操作]
+    E -.-> I[MySQL数据存储
+      Redis缓存]
     
     style F fill:#d4f1f9,stroke-dasharray: 5 5
     style G fill:#d5f5e3,stroke-dasharray: 5 5
@@ -73,7 +86,7 @@ com.attendance
 
 - **核心框架**：Spring Boot 3.x
 - **安全框架**：Spring Security + JWT
-- **数据访问**：Spring Data JPA
+- **数据访问**：Spring Data JPA + MyBit-Plus
 - **数据存储**：MySQL + Redis
 - **API规范**：RESTful API
 - **参数校验**：Jakarta Bean Validation
@@ -114,7 +127,7 @@ com.attendance
 启动项目后，访问 Swagger 文档：
 
 ```
-http://localhost:8080/swagger-ui.html
+https://app.apifox.com/invite/project?token=aewzaMtkZWXVfcDiwU38I
 ```
 
 ## 开发规范
@@ -146,10 +159,14 @@ http://localhost:8080/swagger-ui.html
 
 ```mermaid
 flowchart TD
-    A[客户端应用] --> B[控制器层\nController Layer]
-    B --> C[服务层\nService Layer]
-    C --> D[仓库层\nRepository Layer]
-    D --> E[数据库\nDatabase]
+    A[客户端应用] --> B[控制器
+      Controller Layer]
+    B --> C[服务层
+      Service Layer]
+    C --> D[仓库层
+      Repository Layer]
+    D --> E[数据库
+      Database]
     
     classDef clientStyle fill:#f9f9f9,stroke:#333,stroke-width:2px
     classDef controllerStyle fill:#d4f1f9,stroke:#333,stroke-width:2px,color:#333
@@ -163,10 +180,19 @@ flowchart TD
     class D repoStyle
     class E dbStyle
     
-    B -.-> F[接收请求\n参数校验\n路由分发\n响应封装]
-    C -.-> G[业务逻辑\n事务管理\n规则实现\n数据转换]
-    D -.-> H[数据访问\nORM映射\n查询构建\n持久化操作]
-    E -.-> I[MySQL数据存储\nRedis缓存]
+    B -.-> F[接收请求
+      参数校验
+      路由分发
+      响应封装]
+    C -.-> G[业务逻辑
+      事务管理
+      规则实现
+      数据转换]
+    D -.-> H[数据访问
+      ORM映射n查询构建
+      持久化操作]
+    E -.-> I[MySQL数据存储
+      Redis缓存]
     
     style F fill:#d4f1f9,stroke-dasharray: 5 5
     style G fill:#d5f5e3,stroke-dasharray: 5 5
@@ -700,8 +726,8 @@ flowchart LR
 所有API均以 `/api` 为前缀。
 
 #### 请求方法
-- **GET**: 获取资源
-- **POST**: 创建资源、执行操作或更新资源
+- **GET**: 获取单个资源，不涉及分页的简单查询
+- **POST**: 创建资源、执行操作、复杂查询（包括所有分页查询）
 
 #### 响应格式
 所有API响应均使用JSON格式，包含以下字段：
@@ -713,29 +739,38 @@ flowchart LR
 }
 ```
 
-#### 分页格式
-分页查询返回格式：
+#### 分页查询
+所有分页查询统一使用POST请求，请求体格式如下：
+```json
+{
+  "page": 0,             // 页码(从0开始)，默认0
+  "size": 10,            // 每页大小，默认10，最大100
+  "sort": [              // 排序字段(可选)
+    {
+      "field": "createdAt", 
+      "direction": "DESC"  // ASC或DESC
+    }
+  ],
+  "filters": {           // 过滤条件(可选，根据API不同有不同字段)
+    "key1": "value1",
+    "key2": "value2"
+  }
+}
+```
+
+分页响应格式：
 ```json
 {
   "code": 200,
   "message": "查询成功",
   "data": {
-    "content": [],        // 当前页数据
-    "totalElements": 100, // 总记录数
-    "totalPages": 10,     // 总页数
-    "size": 10,           // 每页大小
-    "number": 0,          // 当前页码(从0开始)
-    "first": true,        // 是否为第一页
-    "last": false,        // 是否为最后一页
-    "empty": false        // 是否为空结果
+    "items": [],          // 当前页数据
+    "totalItems": 100,    // 总记录数
+    "totalPages": 10,     // 总页数 
+    "currentPage": 0      // 当前页码(从0开始)
   }
 }
 ```
-
-#### 分页参数
-所有列表查询支持以下分页参数：
-- `page`: 页码(从0开始)，默认0
-- `size`: 每页大小，默认10，最大100
 
 #### 错误码
 - 200: 成功
@@ -1450,4 +1485,45 @@ curl -X GET "http://localhost:8080/api/statistics/course?courseId=course-uuid-1"
 ```bash
 curl -X GET "http://localhost:8080/api/statistics/student?courseId=course-uuid-1&userId=student-uuid-1" \
   -H "Authorization: Bearer {JWT令牌}"
-``` 
+```
+
+## API设计规范
+
+### 请求方法
+- **GET**: 获取单个资源，不涉及分页的简单查询
+- **POST**: 创建资源、执行操作、复杂查询（包括所有分页查询）
+
+### 分页查询
+所有分页查询统一使用POST请求，请求体格式如下：
+```json
+{
+  "page": 0,             // 页码(从0开始)，默认0
+  "size": 10,            // 每页大小，默认10，最大100
+  "sort": [              // 排序字段(可选)
+    {
+      "field": "createdAt", 
+      "direction": "DESC"  // ASC或DESC
+    }
+  ],
+  "filters": {           // 过滤条件(可选，根据API不同有不同字段)
+    "key1": "value1",
+    "key2": "value2"
+  }
+}
+```
+
+分页响应格式：
+```json
+{
+  "code": 200,
+  "message": "查询成功",
+  "data": {
+    "items": [],          // 当前页数据
+    "totalItems": 100,    // 总记录数
+    "totalPages": 10,     // 总页数 
+    "currentPage": 0      // 当前页码(从0开始)
+  }
+}
+```
+
+有关API的更多详细信息，请参阅 [API设计文档](docs/api-design.md)。 

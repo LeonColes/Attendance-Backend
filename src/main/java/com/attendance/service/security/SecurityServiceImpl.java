@@ -3,11 +3,11 @@ package com.attendance.service.security;
 import com.attendance.common.constants.SystemConstants;
 import com.attendance.model.entity.Course;
 import com.attendance.model.entity.CourseUser;
-import com.attendance.model.entity.Record;
+import com.attendance.model.entity.CourseRecord;
 import com.attendance.model.entity.User;
 import com.attendance.repository.course.CourseRepository;
 import com.attendance.repository.course.CourseUserRepository;
-import com.attendance.repository.record.RecordRepository;
+import com.attendance.repository.course.CourseRecordRepository;
 import com.attendance.repository.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +28,7 @@ public class SecurityServiceImpl implements SecurityService {
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
     private final CourseUserRepository courseUserRepository;
-    private final RecordRepository recordRepository;
+    private final CourseRecordRepository courseRecordRepository;
     
     /**
      * 检查是否为当前用户
@@ -98,12 +98,12 @@ public class SecurityServiceImpl implements SecurityService {
         }
         
         // 查询记录
-        Optional<Record> recordOpt = recordRepository.findById(recordId);
+        Optional<CourseRecord> recordOpt = courseRecordRepository.findById(recordId);
         if (recordOpt.isEmpty()) {
             return false;
         }
         
-        Record record = recordOpt.get();
+        CourseRecord record = recordOpt.get();
         
         // 普通用户只能访问自己的记录
         String username = authentication.getName();
