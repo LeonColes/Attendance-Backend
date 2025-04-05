@@ -103,17 +103,20 @@ attendance:
 logging:
   level:
     root: INFO
-    com.attendance: DEBUG
+    com.attendance: INFO
     org.springframework.web: INFO
-    org.springframework.security: DEBUG
-    com.attendance.common.config.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.security: INFO
+    com.attendance.common.config.security: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   file:
     name: logs/attendance.log
+    max-size: 10MB
+    max-history: 10
+  # 禁用控制台日志
+  config: classpath:logback-file-only.xml
 
 # 应用配置
 app:

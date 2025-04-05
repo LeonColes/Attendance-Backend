@@ -15,7 +15,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -59,7 +58,6 @@ public class SecurityServiceImpl implements SecurityService {
     @Override
     public boolean canAccessCourse(String courseId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUsername = authentication.getName();
         
         // 检查用户角色
         boolean isAdmin = authentication.getAuthorities().stream()
@@ -86,7 +84,6 @@ public class SecurityServiceImpl implements SecurityService {
     @Override
     public boolean canAccessRecord(String recordId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUsername = authentication.getName();
         
         // 检查用户角色
         boolean isAdmin = authentication.getAuthorities().stream()
@@ -109,7 +106,8 @@ public class SecurityServiceImpl implements SecurityService {
         Record record = recordOpt.get();
         
         // 普通用户只能访问自己的记录
-        Optional<User> userOpt = userRepository.findByUsername(currentUsername);
+        String username = authentication.getName();
+        Optional<User> userOpt = userRepository.findByUsername(username);
         if (userOpt.isEmpty()) {
             return false;
         }
@@ -128,26 +126,20 @@ public class SecurityServiceImpl implements SecurityService {
      */
     @Override
     public boolean isCourseCreator(String courseId) {
-        if (courseId == null || courseId.isEmpty()) {
-            return false;
-        }
-
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
         if (authentication == null) {
             return false;
         }
-
-        String username = authentication.getName();
         
-        // 获取用户信息
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            return false;
+        // 管理员可以管理所有课程
+        if (authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            return true;
         }
         
-        User user = userOpt.get();
+        String username = authentication.getName();
         
-        // 获取课程信息
         Optional<Course> courseOpt = courseRepository.findById(courseId);
         if (courseOpt.isEmpty()) {
             return false;
@@ -155,8 +147,12 @@ public class SecurityServiceImpl implements SecurityService {
         
         Course course = courseOpt.get();
         
-        // 检查用户是否为课程创建者
-        return course.getCreatorId().equals(user.getId());
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user == null) {
+            return false;
+        }
+        
+        return user.getId().equals(course.getCreatorId());
     }
     
     /**

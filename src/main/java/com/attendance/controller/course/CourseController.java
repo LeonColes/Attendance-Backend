@@ -7,7 +7,6 @@ import com.attendance.model.dto.course.CourseDTO;
 import com.attendance.model.dto.course.CourseUserDTO;
 import com.attendance.model.dto.course.CreateCourseRequest;
 import com.attendance.model.dto.course.CreateAttendanceRequest;
-import com.attendance.model.dto.user.UserDTO;
 import com.attendance.service.course.CourseService;
 import com.attendance.service.user.UserService;
 import com.google.zxing.BarcodeFormat;
@@ -26,12 +25,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.attendance.model.entity.Course;
 
 /**
  * 课程控制器
@@ -411,7 +407,7 @@ public class CourseController {
             }
             
             // 获取签到码 - 直接使用任务ID
-            String checkinContent = "CHECKIN:" + checkinId;
+            String checkinContent = checkinId;
             
             // 创建二维码
             QRCodeWriter qrCodeWriter = new QRCodeWriter();
@@ -429,6 +425,21 @@ public class CourseController {
             log.error("生成签到二维码失败", e);
             throw new BusinessException("生成签到二维码失败: " + e.getMessage());
         }
+    }
+    
+    /**
+     * 获取课程签到统计信息
+     * 
+     * @param courseId 课程ID
+     * @return 签到统计信息
+     */
+    @GetMapping("/statistics")
+    @PreAuthorize("@courseSecurityService.isCourseCreator(#courseId) or hasRole('ADMIN')")
+    public ApiResponse<Map<String, Object>> getCourseStatistics(@RequestParam String courseId) {
+        log.info("获取课程签到统计: courseId={}", courseId);
+        
+        Map<String, Object> statistics = courseService.getCourseStatistics(courseId);
+        return ApiResponse.success(statistics);
     }
     
     // ========== 请求/响应数据类 ==========

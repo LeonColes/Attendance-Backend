@@ -227,4 +227,12 @@ public interface CourseService {
      * @return 签到任务详情
      */
     Map<String, Object> getCheckinDetails(String checkinId, int page, int size);
+    
+    /**
+     * 获取课程签到统计信息
+     *
+     * @param courseId 课程ID
+     * @return 统计信息
+     */
+    Map<String, Object> getCourseStatistics(String courseId);
 } 

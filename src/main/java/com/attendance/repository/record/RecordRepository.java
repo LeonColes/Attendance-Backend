@@ -103,4 +103,12 @@ public interface RecordRepository extends JpaRepository<Record, String> {
      * @return 记录数量
      */
     long countByCourseIdAndStatus(String courseId, String status);
+    
+    /**
+     * 统计特定课程的签到记录数
+     * 
+     * @param courseId 签到任务ID
+     * @return 签到记录数
+     */
+    long countByCourseId(String courseId);
 } 
