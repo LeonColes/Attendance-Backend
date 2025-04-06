@@ -13,7 +13,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
     /**
      * 配置跨域资源共享
      */
-    @SuppressWarnings("null")
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")

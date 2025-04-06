@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  * 课程签到记录实体
  */
 @Entity
-@Table(name = "course_records")
+@Table(name = "course_record")
 @Data
 @Builder
 @NoArgsConstructor

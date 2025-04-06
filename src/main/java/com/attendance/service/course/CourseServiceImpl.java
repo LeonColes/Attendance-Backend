@@ -663,7 +663,7 @@ public class CourseServiceImpl implements CourseService {
     }
     
     @Override
-    public Map<String, Object> getCheckinRecords(String checkinId, int page, int size) {
+    public Map<String, Object> getCheckinDetail(String checkinId, int page, int size) {
         // 验证签到任务是否存在
         Course checkinTask = courseRepository.findById(checkinId)
             .orElseThrow(() -> new BusinessException("签到任务不存在"));
@@ -704,6 +704,10 @@ public class CourseServiceImpl implements CourseService {
         response.put("totalItems", recordsPage.getTotalElements());
         response.put("totalPages", recordsPage.getTotalPages());
         response.put("checkinInfo", convertToDTO(checkinTask, null));
+        
+        // 获取签到统计信息
+        Map<String, Object> statistics = getCheckinStatistics(checkinId);
+        response.put("statistics", statistics);
         
         return response;
     }
@@ -775,435 +779,6 @@ public class CourseServiceImpl implements CourseService {
         response.put("courseInfo", convertToDTO(course, null));
         
         return response;
-    }
-    
-    @Override
-    public Map<String, Object> getCheckinDetails(String checkinId, int page, int size) {
-        // 验证签到任务是否存在
-        Course checkinTask = courseRepository.findById(checkinId)
-            .orElseThrow(() -> new BusinessException("签到任务不存在"));
-            
-        if (!SystemConstants.CourseType.CHECKIN.equals(checkinTask.getType())) {
-            throw new BusinessException("指定ID不是有效的签到任务");
-        }
-        
-        // 获取当前登录用户
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        User currentUser = userRepository.findByUsername(username)
-            .orElseThrow(() -> new BusinessException("用户不存在"));
-        
-        // 获取父课程
-        Course parentCourse = null;
-        if (checkinTask.getParentCourseId() != null) {
-            parentCourse = courseRepository.findById(checkinTask.getParentCourseId())
-                .orElse(null);
-        }
-        
-        // 验证用户是否有权限查看
-        boolean isCreator = checkinTask.getCreatorId().equals(currentUser.getId());
-        boolean isParentCreator = parentCourse != null && parentCourse.getCreatorId().equals(currentUser.getId());
-        boolean isMember = parentCourse != null && 
-            courseUserRepository.existsByCourseIdAndUserIdAndActiveTrue(parentCourse.getId(), currentUser.getId());
-        
-        if (!isCreator && !isParentCreator && !isMember && !hasRole(authentication, "ADMIN")) {
-            throw new BusinessException("您没有权限查看此签到任务");
-        }
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("checkinInfo", convertToDTO(checkinTask, null));
-        
-        if (parentCourse != null) {
-            response.put("courseInfo", convertToDTO(parentCourse, null));
-        }
-        
-        // 如果是创建者或管理员，返回所有学生的签到情况
-        if (isCreator || isParentCreator || hasRole(authentication, "ADMIN")) {
-            // 创建分页请求
-            Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("checkInTime").descending());
-            
-            // 获取签到记录
-            Page<CourseRecord> recordsPage = courseRecordRepository.findByCourseId(checkinId, pageable);
-            
-            // 转换为统计数据
-            List<Map<String, Object>> records = recordsPage.getContent().stream()
-                .map(record -> {
-                    User user = userRepository.findById(record.getUserId()).orElse(null);
-                    
-                    Map<String, Object> recordMap = new HashMap<>();
-                    recordMap.put("id", record.getId());
-                    recordMap.put("userId", record.getUserId());
-                    recordMap.put("username", user != null ? user.getUsername() : null);
-                    recordMap.put("fullName", user != null ? user.getFullName() : null);
-                    recordMap.put("checkInTime", record.getCheckInTime());
-                    recordMap.put("status", record.getStatus());
-                    recordMap.put("location", record.getLocation());
-                    recordMap.put("device", record.getDevice());
-                    
-                    return recordMap;
-                })
-                .collect(Collectors.toList());
-            
-            response.put("records", records);
-            response.put("currentPage", recordsPage.getNumber());
-            response.put("totalItems", recordsPage.getTotalElements());
-            response.put("totalPages", recordsPage.getTotalPages());
-            
-            // 添加签到统计
-            response.put("statistics", getCheckinStatistics(checkinId));
-        } 
-        // 如果是普通学生，只返回该学生的签到状态
-        else {
-            Optional<CourseRecord> record = courseRecordRepository.findByUserIdAndCourseId(currentUser.getId(), checkinId);
-            Map<String, Object> personalRecord = new HashMap<>();
-            
-            if (record.isPresent()) {
-                CourseRecord r = record.get();
-                personalRecord.put("status", r.getStatus());
-                personalRecord.put("checkInTime", r.getCheckInTime());
-                personalRecord.put("device", r.getDevice());
-                personalRecord.put("location", r.getLocation());
-            } else {
-                personalRecord.put("status", SystemConstants.RecordStatus.ABSENT);
-            }
-            
-            response.put("personalRecord", personalRecord);
-        }
-        
-        return response;
-    }
-
-    @Override
-    public String generateCheckinCode(String checkinId) {
-        // 查找签到任务
-        Course checkinTask = courseRepository.findById(checkinId)
-            .orElseThrow(() -> new BusinessException("签到任务不存在"));
-        
-        if (!SystemConstants.CourseType.CHECKIN.equals(checkinTask.getType())) {
-            throw new BusinessException("指定ID不是有效的签到任务");
-        }
-        
-        if (!SystemConstants.CheckInType.QR_CODE.equals(checkinTask.getCheckinType())) {
-            throw new BusinessException("该签到任务不是二维码签到类型");
-        }
-        
-        // 直接使用签到任务ID作为签到码，移除前缀
-        checkinTask.setVerifyParams(checkinId);
-        courseRepository.save(checkinTask);
-        
-        return checkinId;
-    }
-
-    @Override
-    public Map<String, Object> getCourseStatistics(String courseId) {
-        Map<String, Object> statistics = new HashMap<>();
-        
-        // 验证课程是否存在
-        Course course = courseRepository.findById(courseId)
-            .orElseThrow(() -> new BusinessException("课程不存在"));
-            
-        if (!SystemConstants.CourseType.COURSE.equals(course.getType())) {
-            throw new BusinessException("指定ID不是有效的课程");
-        }
-        
-        // 获取课程学生列表
-        List<String> studentIds = courseUserRepository.findUserIdsByCourseIdAndRole(
-            courseId, SystemConstants.CourseUserRole.STUDENT);
-            
-        // 学生总数
-        int totalStudents = studentIds.size();
-        statistics.put("totalStudents", totalStudents);
-        
-        // 获取课程所有签到任务
-        List<Course> checkinTasks = courseRepository.findByParentCourseIdAndType(
-            courseId, SystemConstants.CourseType.CHECKIN);
-            
-        // 签到任务总数
-        int totalTasks = checkinTasks.size();
-        statistics.put("totalCheckinTasks", totalTasks);
-        
-        // 进行中的签到任务数
-        long activeTasks = checkinTasks.stream()
-            .filter(task -> SystemConstants.TaskStatus.ACTIVE.equals(task.getStatus()))
-            .count();
-        statistics.put("activeCheckinTasks", activeTasks);
-        
-        // 已结束的签到任务数
-        long endedTasks = checkinTasks.stream()
-            .filter(task -> SystemConstants.TaskStatus.ENDED.equals(task.getStatus()))
-            .count();
-        statistics.put("endedCheckinTasks", endedTasks);
-        
-        // 统计每个学生的签到情况
-        List<Map<String, Object>> studentStatsList = new ArrayList<>();
-        
-        for (String studentId : studentIds) {
-            User student = userRepository.findById(studentId).orElse(null);
-            if (student == null) continue;
-            
-            Map<String, Object> studentStats = new HashMap<>();
-            studentStats.put("userId", studentId);
-            studentStats.put("username", student.getUsername());
-            studentStats.put("fullName", student.getFullName());
-            
-            // 统计该学生各种状态的签到次数
-            long normalCount = 0;
-            long lateCount = 0;
-            long absentCount = 0;
-            
-            for (Course task : checkinTasks) {
-                // 只统计已结束的签到任务
-                if (!SystemConstants.TaskStatus.ENDED.equals(task.getStatus())) {
-                    continue;
-                }
-                
-                Optional<CourseRecord> record = courseRecordRepository.findByUserIdAndCourseId(studentId, task.getId());
-                if (record.isPresent()) {
-                    if (SystemConstants.RecordStatus.NORMAL.equals(record.get().getStatus())) {
-                        normalCount++;
-                    } else if (SystemConstants.RecordStatus.LATE.equals(record.get().getStatus())) {
-                        lateCount++;
-                    }
-                } else {
-                    absentCount++;
-                }
-            }
-            
-            studentStats.put("normalCount", normalCount);
-            studentStats.put("lateCount", lateCount);
-            studentStats.put("absentCount", absentCount);
-            studentStats.put("attendanceRate", endedTasks > 0 
-                ? Math.round((normalCount + lateCount) * 100.0 / endedTasks)
-                : 0);
-            
-            studentStatsList.add(studentStats);
-        }
-        
-        // 按出勤率降序排序
-        studentStatsList.sort((a, b) -> 
-            ((Integer)b.get("attendanceRate")).compareTo((Integer)a.get("attendanceRate")));
-        
-        statistics.put("studentStatistics", studentStatsList);
-        
-        // 总体统计
-        statistics.put("overallAttendanceRate", totalStudents > 0 && endedTasks > 0 
-            ? calculateOverallAttendanceRate(courseId, studentIds, checkinTasks)
-            : 0);
-        
-        return statistics;
-    }
-    
-    // 计算总体出勤率
-    private int calculateOverallAttendanceRate(String courseId, List<String> studentIds, List<Course> checkinTasks) {
-        // 只统计已结束的任务
-        long endedTasksCount = checkinTasks.stream()
-            .filter(task -> SystemConstants.TaskStatus.ENDED.equals(task.getStatus()))
-            .count();
-            
-        if (endedTasksCount == 0 || studentIds.isEmpty()) {
-            return 0;
-        }
-        
-        // 理论上应该有的总签到次数 = 学生数 * 签到任务数
-        long totalPossibleRecords = studentIds.size() * endedTasksCount;
-        
-        // 实际签到次数（正常+迟到）
-        long actualRecords = 0;
-        
-        for (Course task : checkinTasks) {
-            if (SystemConstants.TaskStatus.ENDED.equals(task.getStatus())) {
-                // 获取该任务的签到记录数
-                actualRecords += courseRecordRepository.countByCourseId(task.getId());
-            }
-        }
-        
-        // 计算百分比
-        return (int) Math.round(actualRecords * 100.0 / totalPossibleRecords);
-    }
-
-    @Override
-    public Map<String, Object> getCheckinTeacherView(String checkinId, int page, int size) {
-        // 验证签到任务是否存在
-        Course checkinTask = courseRepository.findById(checkinId)
-            .orElseThrow(() -> new BusinessException("签到任务不存在"));
-            
-        if (!SystemConstants.CourseType.CHECKIN.equals(checkinTask.getType())) {
-            throw new BusinessException("指定ID不是有效的签到任务");
-        }
-        
-        // 获取当前登录用户
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        User currentUser = userRepository.findByUsername(username)
-            .orElseThrow(() -> new BusinessException("用户不存在"));
-        
-        // 获取父课程
-        Course parentCourse = null;
-        if (checkinTask.getParentCourseId() != null) {
-            parentCourse = courseRepository.findById(checkinTask.getParentCourseId())
-                .orElse(null);
-        }
-        
-        // 验证用户是否有权限查看
-        boolean isCreator = checkinTask.getCreatorId().equals(currentUser.getId());
-        boolean isParentCreator = parentCourse != null && parentCourse.getCreatorId().equals(currentUser.getId());
-        
-        if (!isCreator && !isParentCreator && !authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
-            throw new BusinessException("您没有权限查看此签到任务的记录");
-        }
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("checkinInfo", convertToDTO(checkinTask, null));
-        
-        if (parentCourse != null) {
-            response.put("courseInfo", convertToDTO(parentCourse, null));
-        }
-        
-        // 创建分页请求 - 以学生姓名排序
-        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("checkInTime").descending());
-        
-        // 获取签到记录
-        Page<CourseRecord> recordsPage = courseRecordRepository.findByCourseId(checkinId, pageable);
-        
-        // 转换为列表数据
-        List<Map<String, Object>> records = new ArrayList<>();
-        for (CourseRecord record : recordsPage.getContent()) {
-            User student = userRepository.findById(record.getUserId()).orElse(null);
-            if (student != null) {
-                Map<String, Object> item = new HashMap<>();
-                item.put("recordId", record.getId());
-                item.put("userId", student.getId());
-                item.put("username", student.getUsername());
-                item.put("fullName", student.getFullName());
-                item.put("status", record.getStatus());
-                item.put("checkInTime", record.getCheckInTime());
-                item.put("location", record.getLocation());
-                item.put("device", record.getDevice());
-                records.add(item);
-            }
-        }
-        
-        response.put("records", records);
-        response.put("currentPage", recordsPage.getNumber());
-        response.put("totalItems", recordsPage.getTotalElements());
-        response.put("totalPages", recordsPage.getTotalPages());
-        
-        // 添加签到统计信息
-        response.put("statistics", getCheckinStatistics(checkinId));
-        
-        return response;
-    }
-    
-    @Override
-    public Map<String, Object> getCheckinStudentView(String courseId) {
-        Map<String, Object> result = new HashMap<>();
-        
-        // 验证课程是否存在
-        Course course = courseRepository.findById(courseId)
-            .orElseThrow(() -> new BusinessException("课程不存在"));
-            
-        if (!SystemConstants.CourseType.COURSE.equals(course.getType())) {
-            throw new BusinessException("指定ID不是有效的课程");
-        }
-        
-        // 获取当前登录用户
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        User currentUser = userRepository.findByUsername(username)
-            .orElseThrow(() -> new BusinessException("用户不存在"));
-            
-        // 获取课程下的所有签到任务
-        List<Course> checkinTasks = courseRepository.findByParentCourseIdAndType(
-            courseId, SystemConstants.CourseType.CHECKIN);
-            
-        // 按时间倒序排序
-        checkinTasks.sort((a, b) -> {
-            if (a.getCreatedAt() == null || b.getCreatedAt() == null) {
-                return 0;
-            }
-            return b.getCreatedAt().compareTo(a.getCreatedAt());
-        });
-            
-        // 转换为DTO，添加签到状态
-        List<Map<String, Object>> checkinStatusList = new ArrayList<>();
-        
-        for (Course checkinTask : checkinTasks) {
-            Map<String, Object> taskStatus = new HashMap<>();
-            
-            // 基本任务信息
-            taskStatus.put("id", checkinTask.getId());
-            taskStatus.put("title", checkinTask.getName());
-            taskStatus.put("description", checkinTask.getDescription());
-            taskStatus.put("startTime", checkinTask.getCheckinStartTime());
-            taskStatus.put("endTime", checkinTask.getCheckinEndTime());
-            taskStatus.put("status", checkinTask.getStatus());
-            
-            // 查询学生签到记录
-            Optional<CourseRecord> record = courseRecordRepository.findByUserIdAndCourseId(
-                currentUser.getId(), checkinTask.getId());
-                
-            if (record.isPresent()) {
-                // 已签到
-                taskStatus.put("checkinStatus", record.get().getStatus());
-                taskStatus.put("checkinTime", record.get().getCheckInTime());
-                taskStatus.put("checkedIn", true);
-            } else {
-                // 未签到
-                taskStatus.put("checkinStatus", "ABSENT");
-                taskStatus.put("checkedIn", false);
-                
-                // 判断是否可以签到
-                boolean canCheckin = SystemConstants.TaskStatus.ACTIVE.equals(checkinTask.getStatus());
-                taskStatus.put("canCheckin", canCheckin);
-                
-                if (!canCheckin && checkinTask.getCheckinEndTime() != null && 
-                    LocalDateTime.now().isAfter(checkinTask.getCheckinEndTime())) {
-                    taskStatus.put("reason", "签到已结束");
-                } else if (!canCheckin && !SystemConstants.TaskStatus.ACTIVE.equals(checkinTask.getStatus())) {
-                    taskStatus.put("reason", "签到未开始或已关闭");
-                }
-            }
-            
-            checkinStatusList.add(taskStatus);
-        }
-        
-        // 构建结果
-        result.put("courseId", courseId);
-        result.put("courseName", course.getName());
-        result.put("totalTasks", checkinTasks.size());
-        result.put("checkinTasks", checkinStatusList);
-        
-        // 统计学生在该课程的出勤率
-        long completedTasks = checkinTasks.stream()
-            .filter(task -> SystemConstants.TaskStatus.ENDED.equals(task.getStatus()))
-            .count();
-            
-        if (completedTasks > 0) {
-            // 已签到的任务数
-            long checkedInTasks = 0;
-            for (Course task : checkinTasks) {
-                if (!SystemConstants.TaskStatus.ENDED.equals(task.getStatus())) {
-                    continue;
-                }
-                
-                if (courseRecordRepository.findByUserIdAndCourseId(currentUser.getId(), task.getId()).isPresent()) {
-                    checkedInTasks++;
-                }
-            }
-            
-            // 计算出勤率
-            int attendanceRate = (int) Math.round(checkedInTasks * 100.0 / completedTasks);
-            result.put("attendanceRate", attendanceRate);
-            result.put("attendedTasks", checkedInTasks);
-            result.put("completedTasks", completedTasks);
-        } else {
-            result.put("attendanceRate", 0);
-            result.put("attendedTasks", 0);
-            result.put("completedTasks", 0);
-        }
-        
-        return result;
     }
     
     @Override
@@ -1497,13 +1072,12 @@ public class CourseServiceImpl implements CourseService {
             items.add(item);
         }
         
-        // 创建响应
+        // 创建响应 - 移除多余的课程信息
         Map<String, Object> response = new HashMap<>();
         response.put("items", items);
         response.put("currentPage", checkinTasksPage.getNumber());
         response.put("totalItems", checkinTasksPage.getTotalElements());
         response.put("totalPages", checkinTasksPage.getTotalPages());
-        response.put("courseInfo", convertToDTO(course, null));
         
         return response;
     }
@@ -1617,62 +1191,56 @@ public class CourseServiceImpl implements CourseService {
     }
     
     @Override
-    public Map<String, Object> getCheckinDetail(String checkinId, int page, int size) {
-        // 复用 getCheckinDetails 方法
-        return getCheckinDetails(checkinId, page, size);
-    }
-
-    @Override
     public CourseRecordDTO submitCheckIn(String courseId, String verifyMethod, String location, String device, String verifyData) {
         // 验证签到任务是否存在
         Course checkinTask = courseRepository.findById(courseId)
-            .orElseThrow(() -> new BusinessException("签到任务不存在"));
+            .orElseThrow(() -> new BusinessException("签到任务不存在：请检查签到任务ID是否正确"));
             
         if (!SystemConstants.CourseType.CHECKIN.equals(checkinTask.getType())) {
-            throw new BusinessException("指定ID不是有效的签到任务");
+            throw new BusinessException("无效的签到操作：提供的ID不是签到任务，请确认您使用了正确的签到ID");
         }
         
         // 检查任务状态
         if (!SystemConstants.TaskStatus.ACTIVE.equals(checkinTask.getStatus())) {
             if (SystemConstants.TaskStatus.CREATED.equals(checkinTask.getStatus())) {
-                throw new BusinessException("签到尚未开始");
+                throw new BusinessException("签到尚未开始：该签到任务已创建但尚未激活，请等待教师开始签到");
             } else if (SystemConstants.TaskStatus.ENDED.equals(checkinTask.getStatus()) || 
                      SystemConstants.TaskStatus.COMPLETED.equals(checkinTask.getStatus())) {
-                throw new BusinessException("签到已结束");
+                throw new BusinessException("签到已结束：该签到任务已经关闭，无法继续签到");
             } else {
-                throw new BusinessException("签到已取消");
+                throw new BusinessException("签到已取消：该签到任务已被教师取消");
             }
         }
         
         // 检查签到时间
         LocalDateTime now = LocalDateTime.now();
         if (checkinTask.getCheckinStartTime() != null && now.isBefore(checkinTask.getCheckinStartTime())) {
-            throw new BusinessException("签到尚未开始，请在" + 
-                checkinTask.getCheckinStartTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "之后再试");
+            throw new BusinessException("签到未开始：请在" + 
+                checkinTask.getCheckinStartTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "之后再尝试签到");
         }
         
         if (checkinTask.getCheckinEndTime() != null && now.isAfter(checkinTask.getCheckinEndTime())) {
-            throw new BusinessException("签到已结束，结束时间为" + 
-                checkinTask.getCheckinEndTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            throw new BusinessException("签到已截止：签到时间已于" + 
+                checkinTask.getCheckinEndTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "结束，请联系教师处理");
         }
         
         // 获取当前用户
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         User currentUser = userRepository.findByUsername(username)
-            .orElseThrow(() -> new BusinessException("用户不存在"));
+            .orElseThrow(() -> new BusinessException("用户验证失败：无法获取当前用户信息，请重新登录"));
             
         // 检查是否为课程成员
         if (!courseUserRepository.existsByCourseIdAndUserIdAndActiveTrue(
                 checkinTask.getParentCourseId(), currentUser.getId())) {
-            throw new BusinessException("您不是该课程的成员，无法签到");
+            throw new BusinessException("签到失败：您不是该课程的成员，只有课程成员才能进行签到");
         }
         
         // 检查是否重复签到
         Optional<CourseRecord> existingRecord = courseRecordRepository.findByUserIdAndCourseId(
             currentUser.getId(), courseId);
         if (existingRecord.isPresent()) {
-            throw new BusinessException("您已经签到过了");
+            throw new BusinessException("重复签到：您已经完成了本次签到，无需重复操作");
         }
         
         // 验证签到数据 (根据不同的签到方式)
@@ -1682,6 +1250,36 @@ public class CourseServiceImpl implements CourseService {
             isLate = true;
         }
         
+        // 处理不同签到方式的验证逻辑
+        if (SystemConstants.CheckInType.QR_CODE.equals(verifyMethod)) {
+            // 二维码签到 - 如果提供了verifyData，则验证是否与checkinId匹配
+            if (verifyData != null && !verifyData.isEmpty() && !courseId.equals(verifyData)) {
+                throw new BusinessException("二维码验证失败：扫描的二维码数据无效，请确认您扫描了正确的签到二维码");
+            }
+            // 如果未提供verifyData，使用checkinId作为默认值（与二维码生成逻辑一致）
+            if (verifyData == null || verifyData.isEmpty()) {
+                verifyData = courseId;
+            }
+        } else if (SystemConstants.CheckInType.LOCATION.equals(verifyMethod)) {
+            // 位置签到逻辑
+            if (location == null || location.isEmpty()) {
+                throw new BusinessException("位置签到失败：位置信息缺失，请允许应用获取您的位置信息后重试");
+            }
+            // 可以在这里添加位置验证逻辑，例如检查是否在课堂附近
+        } else if (SystemConstants.CheckInType.WIFI.equals(verifyMethod)) {
+            // WIFI签到逻辑
+            if (verifyData == null || verifyData.isEmpty()) {
+                throw new BusinessException("WIFI签到失败：未提供WIFI信息，请确保连接到指定WIFI并允许应用获取网络信息");
+            }
+            // 可以在这里添加WIFI验证逻辑
+        }
+        
+        // 如果未提供设备信息，尝试获取基本设备信息
+        if (device == null || device.isEmpty()) {
+            // 尝试从请求中获取设备信息
+            device = getBasicDeviceInfo();
+        }
+        
         // 创建签到记录
         CourseRecord record = new CourseRecord();
         record.setUserId(currentUser.getId());
@@ -1689,11 +1287,10 @@ public class CourseServiceImpl implements CourseService {
         record.setParentCourseId(checkinTask.getParentCourseId());
         record.setStatus(isLate ? SystemConstants.RecordStatus.LATE : SystemConstants.RecordStatus.NORMAL);
         record.setCheckInTime(now);
-        record.setLocation(location);
-        record.setDevice(device);
+        record.setLocation(location); // 可能为null
+        record.setDevice(device);     // 设备信息（可能为"Unknown Device"）
         record.setVerifyMethod(verifyMethod);
-        // 用备注字段存储验证数据
-        record.setRemark(verifyData);
+        record.setRemark(verifyData); // 可能为null
         
         CourseRecord savedRecord = courseRecordRepository.save(record);
         
@@ -1702,125 +1299,19 @@ public class CourseServiceImpl implements CourseService {
         return dto;
     }
     
-    @Override
-    public Map<String, Object> getUserCourseRecords(String courseId, String userId, int page, int size) {
-        // 验证课程是否存在
-        Course course = courseRepository.findById(courseId)
-            .orElseThrow(() -> new BusinessException("课程不存在"));
-            
-        if (!SystemConstants.CourseType.COURSE.equals(course.getType())) {
-            throw new BusinessException("指定ID不是有效的课程");
+    /**
+     * 获取基本设备信息，在未提供设备信息时使用
+     * 实际环境中可以从请求头或其他来源获取更详细的信息
+     * @return 基本设备信息字符串
+     */
+    private String getBasicDeviceInfo() {
+        try {
+            // 这里可以从RequestContextHolder获取当前请求，然后提取User-Agent等信息
+            // 简化实现，实际应用中可以根据需要扩展
+            return "Unknown Device";
+        } catch (Exception e) {
+            return "Unknown Device";
         }
-        
-        // 获取当前登录用户
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        User currentUser = userRepository.findByUsername(username)
-            .orElseThrow(() -> new BusinessException("用户不存在"));
-            
-        // 确定查询的用户
-        String targetUserId = userId;
-        if (targetUserId == null || targetUserId.trim().isEmpty()) {
-            targetUserId = currentUser.getId();
-        }
-        
-        // 检查权限：自己只能查看自己的记录，老师和管理员可以查看所有学生记录
-        boolean isCreator = course.getCreatorId().equals(currentUser.getId());
-        if (!targetUserId.equals(currentUser.getId()) && !isCreator && !hasRole(authentication, "ADMIN")) {
-            throw new BusinessException("您无权查看其他用户的签到记录");
-        }
-        
-        // 获取用户信息
-        User targetUser = userRepository.findById(targetUserId)
-            .orElseThrow(() -> new BusinessException("目标用户不存在"));
-            
-        // 创建分页请求
-        // 已不再使用PageRequest分页，使用手动分页，因此移除此变量
-        
-        // 获取课程下的所有签到任务
-        List<Course> checkinTasks = courseRepository.findByParentCourseIdAndType(
-            courseId, SystemConstants.CourseType.CHECKIN);
-            
-        // 将所有签到任务ID放入列表
-        List<String> checkinTaskIds = checkinTasks.stream()
-            .map(Course::getId)
-            .collect(Collectors.toList());
-            
-        // 查询用户在这些签到任务的记录
-        List<CourseRecord> allRecords = new ArrayList<>();
-        for (String checkinId : checkinTaskIds) {
-            Optional<CourseRecord> recordOpt = courseRecordRepository.findByUserIdAndCourseId(targetUserId, checkinId);
-            if (recordOpt.isPresent()) {
-                allRecords.add(recordOpt.get());
-            }
-        }
-        
-        // 手动分页
-        int start = page * size;
-        int end = Math.min(start + size, allRecords.size());
-        List<CourseRecord> pagedRecords = start < end ? allRecords.subList(start, end) : new ArrayList<>();
-        
-        // 转换为DTO列表
-        List<Map<String, Object>> records = new ArrayList<>();
-        for (CourseRecord record : pagedRecords) {
-            Course checkinTask = courseRepository.findById(record.getCourseId()).orElse(null);
-            if (checkinTask != null) {
-                Map<String, Object> item = new HashMap<>();
-                item.put("recordId", record.getId());
-                item.put("checkinId", record.getCourseId());
-                item.put("checkinName", checkinTask.getName());
-                item.put("status", record.getStatus());
-                item.put("checkInTime", record.getCheckInTime());
-                item.put("location", record.getLocation());
-                item.put("device", record.getDevice());
-                item.put("verifyMethod", record.getVerifyMethod());
-                records.add(item);
-            }
-        }
-        
-        // 为签到记录计算未签到记录
-        List<Map<String, Object>> allRecordsWithAbsent = new ArrayList<>(records);
-        for (Course task : checkinTasks) {
-            boolean found = allRecords.stream()
-                .anyMatch(r -> r.getCourseId().equals(task.getId()));
-                
-            if (!found && (task.getCheckinEndTime() == null || 
-                task.getCheckinEndTime().isBefore(LocalDateTime.now()))) {
-                Map<String, Object> absentRecord = new HashMap<>();
-                absentRecord.put("checkinId", task.getId());
-                absentRecord.put("checkinName", task.getName());
-                absentRecord.put("status", SystemConstants.RecordStatus.ABSENT);
-                absentRecord.put("checkInTime", null);
-                allRecordsWithAbsent.add(absentRecord);
-            }
-        }
-        
-        // 创建响应
-        Map<String, Object> response = new HashMap<>();
-        response.put("records", records);
-        response.put("currentPage", page);
-        response.put("totalItems", allRecords.size());
-        response.put("totalPages", (int) Math.ceil((double) allRecords.size() / size));
-        
-        // 添加用户和课程信息
-        Map<String, Object> userInfo = new HashMap<>();
-        userInfo.put("id", targetUser.getId());
-        userInfo.put("username", targetUser.getUsername());
-        userInfo.put("fullName", targetUser.getFullName());
-        
-        // 将CourseDTO转换为Map
-        Map<String, Object> courseInfo = new HashMap<>();
-        CourseDTO courseDto = convertToDTO(course, null);
-        courseInfo.put("id", courseDto.getId());
-        courseInfo.put("name", courseDto.getName());
-        courseInfo.put("description", courseDto.getDescription());
-        courseInfo.put("creatorId", courseDto.getCreatorId());
-        courseInfo.put("status", courseDto.getStatus());
-        
-        response.put("userInfo", userInfo);
-        response.put("courseInfo", courseInfo);
-        
-        return response;
     }
     
     /**
@@ -1946,5 +1437,123 @@ public class CourseServiceImpl implements CourseService {
         dto.setRole(courseUser.getRole());
         dto.setJoinedAt(courseUser.getJoinedAt());
         return dto;
+    }
+
+    @Override
+    public Map<String, Object> getUserCourseRecords(String courseId, String userId, int page, int size) {
+        // 验证课程是否存在
+        Course course = courseRepository.findById(courseId)
+            .orElseThrow(() -> new BusinessException("课程不存在"));
+            
+        if (!SystemConstants.CourseType.COURSE.equals(course.getType())) {
+            throw new BusinessException("指定ID不是有效的课程");
+        }
+        
+        // 获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        User currentUser = userRepository.findByUsername(username)
+            .orElseThrow(() -> new BusinessException("用户不存在"));
+            
+        // 确定查询的用户
+        String targetUserId = userId;
+        if (targetUserId == null || targetUserId.trim().isEmpty()) {
+            targetUserId = currentUser.getId();
+        }
+        
+        // 检查权限：自己只能查看自己的记录，老师和管理员可以查看所有学生记录
+        boolean isCreator = course.getCreatorId().equals(currentUser.getId());
+        if (!targetUserId.equals(currentUser.getId()) && !isCreator && !hasRole(authentication, "ADMIN")) {
+            throw new BusinessException("您无权查看其他用户的签到记录");
+        }
+        
+        // 获取用户信息
+        User targetUser = userRepository.findById(targetUserId)
+            .orElseThrow(() -> new BusinessException("目标用户不存在"));
+            
+        // 获取课程下的所有签到任务
+        List<Course> checkinTasks = courseRepository.findByParentCourseIdAndType(
+            courseId, SystemConstants.CourseType.CHECKIN);
+            
+        // 将所有签到任务ID放入列表
+        List<String> checkinTaskIds = checkinTasks.stream()
+            .map(Course::getId)
+            .collect(Collectors.toList());
+            
+        // 查询用户在这些签到任务的记录
+        List<CourseRecord> allRecords = new ArrayList<>();
+        for (String checkinId : checkinTaskIds) {
+            Optional<CourseRecord> recordOpt = courseRecordRepository.findByUserIdAndCourseId(targetUserId, checkinId);
+            if (recordOpt.isPresent()) {
+                allRecords.add(recordOpt.get());
+            }
+        }
+        
+        // 手动分页
+        int start = page * size;
+        int end = Math.min(start + size, allRecords.size());
+        List<CourseRecord> pagedRecords = start < end ? allRecords.subList(start, end) : new ArrayList<>();
+        
+        // 转换为DTO列表
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (CourseRecord record : pagedRecords) {
+            Course checkinTask = courseRepository.findById(record.getCourseId()).orElse(null);
+            if (checkinTask != null) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("recordId", record.getId());
+                item.put("checkinId", record.getCourseId());
+                item.put("checkinName", checkinTask.getName());
+                item.put("status", record.getStatus());
+                item.put("checkInTime", record.getCheckInTime());
+                item.put("location", record.getLocation());
+                item.put("device", record.getDevice());
+                item.put("verifyMethod", record.getVerifyMethod());
+                records.add(item);
+            }
+        }
+        
+        // 为签到记录计算未签到记录
+        List<Map<String, Object>> allRecordsWithAbsent = new ArrayList<>(records);
+        for (Course task : checkinTasks) {
+            boolean found = allRecords.stream()
+                .anyMatch(r -> r.getCourseId().equals(task.getId()));
+                
+            if (!found && (task.getCheckinEndTime() == null || 
+                task.getCheckinEndTime().isBefore(LocalDateTime.now()))) {
+                Map<String, Object> absentRecord = new HashMap<>();
+                absentRecord.put("checkinId", task.getId());
+                absentRecord.put("checkinName", task.getName());
+                absentRecord.put("status", SystemConstants.RecordStatus.ABSENT);
+                absentRecord.put("checkInTime", null);
+                allRecordsWithAbsent.add(absentRecord);
+            }
+        }
+        
+        // 创建响应
+        Map<String, Object> response = new HashMap<>();
+        response.put("records", records);
+        response.put("currentPage", page);
+        response.put("totalItems", allRecords.size());
+        response.put("totalPages", (int) Math.ceil((double) allRecords.size() / size));
+        
+        // 添加用户和课程信息
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("id", targetUser.getId());
+        userInfo.put("username", targetUser.getUsername());
+        userInfo.put("fullName", targetUser.getFullName());
+        
+        // 将CourseDTO转换为Map
+        Map<String, Object> courseInfo = new HashMap<>();
+        CourseDTO courseDto = convertToDTO(course, null);
+        courseInfo.put("id", courseDto.getId());
+        courseInfo.put("name", courseDto.getName());
+        courseInfo.put("description", courseDto.getDescription());
+        courseInfo.put("creatorId", courseDto.getCreatorId());
+        courseInfo.put("status", courseDto.getStatus());
+        
+        response.put("userInfo", userInfo);
+        response.put("courseInfo", courseInfo);
+        
+        return response;
     }
 } 

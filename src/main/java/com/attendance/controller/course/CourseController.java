@@ -113,11 +113,11 @@ public class CourseController {
     }
     
     /**
-     * 获取课程下的所有签到任务列表
+     * 获取课程下的所有签到任务列表（老师查看课程的签到任务列表，学生查看自己在任务中的签到状态）
      * 
      * @param courseId 课程ID
      * @param requestDTO 分页请求参数
-     * @return 签到任务列表
+     * @return 签到任务列表和状态
      */
     @PostMapping("/attendance/list")
     public ApiResponse<Map<String, Object>> getAttendanceList(
@@ -145,24 +145,6 @@ public class CourseController {
     }
     
     /**
-     * 获取单个签到任务的详细信息（教师看到学生签到统计，学生看到自己的签到状态）
-     * 
-     * @param checkinId 签到任务ID
-     * @param requestDTO 分页请求参数
-     * @return 签到任务详情
-     */
-    @PostMapping("/attendance/details")
-    public ApiResponse<Map<String, Object>> getCheckinDetails(
-            @RequestParam String checkinId,
-            @Valid @RequestBody PageRequestDTO requestDTO) {
-        log.info("获取签到任务详情: checkinId={}, page={}, size={}", 
-            checkinId, requestDTO.getPage(), requestDTO.getSize());
-        Map<String, Object> response = courseService.getCheckinDetails(
-            checkinId, requestDTO.getPage(), requestDTO.getSize());
-        return ApiResponse.success(response);
-    }
-    
-    /**
      * 通过邀请码加入课程
      * 
      * @param code 邀请码
@@ -182,7 +164,7 @@ public class CourseController {
      * @param requestDTO 分页请求参数
      * @return 成员列表
      */
-    @PostMapping("/members")
+    @PostMapping("/members/list")
     @PreAuthorize("@courseSecurityService.isCourseCreator(#courseId) or hasRole('ADMIN')")
     public ApiResponse<Map<String, Object>> getCourseMembers(
             @RequestParam String courseId,
@@ -195,41 +177,24 @@ public class CourseController {
     }
     
     /**
-     * 添加课程成员
-     * 
-     * @param request 添加成员请求
-     * @return 添加结果
-     */
-    @PostMapping("/members/add")
-    @PreAuthorize("@courseSecurityService.isCourseCreator(#request.courseId) or hasRole('ADMIN')")
-    public ApiResponse<AddMembersResponse> addCourseMembers(@Valid @RequestBody AddMembersRequest request) {
-        log.info("添加课程成员: 请求={}", request);
-        
-        int successCount = courseService.addCourseMembers(
-            request.getCourseId(), 
-            request.getUserIds(), 
-            request.getRole()
-        );
-        
-        AddMembersResponse response = new AddMembersResponse();
-        response.setSuccessful(successCount);
-        response.setFailed(request.getUserIds().size() - successCount);
-        response.setNewMemberCount(courseService.getCourseMemberCount(request.getCourseId()));
-        
-        return ApiResponse.success(String.format("成功添加%d名成员", successCount), response);
-    }
-    
-    /**
      * 提交签到
      * 
-     * @param request 签到请求
-     * @return 签到结果
+     * 支持多种签到方式：
+     * - QR_CODE: 二维码签到，可选提供verifyData，默认使用checkinId
+     * - LOCATION: 位置签到，需要提供location参数（经纬度坐标）
+     * - WIFI: WIFI签到，需要提供verifyData参数（WIFI信息）
+     * 
+     * 设备信息会被记录用于签到分析和安全审计，推荐始终提供此信息
+     * 
+     * @param request 签到请求，包含签到任务ID和验证方式等信息
+     * @return 签到结果，包含签到状态和时间等信息
      */
     @PostMapping("/attendance/check-in")
     public ApiResponse<CourseRecordDTO> submitCheckIn(@Valid @RequestBody CheckInRequest request) {
-        log.info("提交签到: courseId={}, verifyMethod={}", request.getCourseId(), request.getVerifyMethod());
+        log.info("提交签到: checkinId={}, verifyMethod={}, device={}", 
+                request.getCheckinId(), request.getVerifyMethod(), request.getDevice());
         CourseRecordDTO record = courseService.submitCheckIn(
-                request.getCourseId(),
+                request.getCheckinId(),
                 request.getVerifyMethod(),
                 request.getLocation(),
                 request.getDevice(),
@@ -334,66 +299,59 @@ public class CourseController {
     }
     
     /**
-     * 获取签到记录（教师视角）
+     * 老师查看特定签到任务的所有学生签到记录
      * 
      * @param checkinId 签到任务ID
      * @param requestDTO 分页请求参数
-     * @return 签到记录
+     * @return 学生签到记录列表
      */
-    @PostMapping("/attendance/records")
+    @PostMapping("/attendance/record/list")
     @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
-    public ApiResponse<Map<String, Object>> getCheckinRecords(
+    public ApiResponse<Map<String, Object>> getAttendanceRecordList(
             @RequestParam String checkinId,
             @Valid @RequestBody PageRequestDTO requestDTO) {
-        log.info("获取签到记录(老师视角): checkinId={}, page={}, size={}", 
+        log.info("获取签到任务的学生记录(教师视角): checkinId={}, page={}, size={}", 
             checkinId, requestDTO.getPage(), requestDTO.getSize());
-        Map<String, Object> response = courseService.getCheckinTeacherView(
+        Map<String, Object> response = courseService.getCheckinDetail(
             checkinId, requestDTO.getPage(), requestDTO.getSize());
         return ApiResponse.success(response);
     }
     
     /**
-     * 获取我的签到记录
-     * （学生视角：查看自己在所有签到任务的状态）
+     * 学生查看自己在课程中的所有签到状态
      * 
      * @param courseId 课程ID
-     * @return 签到记录列表
+     * @param requestDTO 分页请求参数
+     * @return 学生签到状态列表
      */
-    @GetMapping("/attendance/mystatus")
-    public ApiResponse<Map<String, Object>> getMyCheckinStatus(@RequestParam String courseId) {
-        log.info("获取我的签到记录(学生视角): courseId={}", courseId);
-        Map<String, Object> response = courseService.getCheckinStudentView(courseId);
+    @PostMapping("/attendance/record/status")
+    public ApiResponse<Map<String, Object>> getAttendanceRecordStatus(
+            @RequestParam String courseId,
+            @Valid @RequestBody PageRequestDTO requestDTO) {
+        log.info("获取学生在课程中的签到状态: courseId={}, page={}, size={}", 
+            courseId, requestDTO.getPage(), requestDTO.getSize());
+            
+        // 获取签到任务列表和学生的签到状态
+        Map<String, Object> response = courseService.getAttendanceList(
+            courseId, requestDTO.getPage(), requestDTO.getSize());
         return ApiResponse.success(response);
     }
     
     /**
-     * 获取签到任务统计信息
-     * （老师视角：统计已签到和未签到学生情况）
+     * 获取签到任务的统计信息
      * 
      * @param checkinId 签到任务ID
+     * @param requestDTO 分页请求参数
      * @return 签到统计信息
      */
-    @GetMapping("/attendance/stats")
+    @PostMapping("/attendance/record/statistics")
     @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
-    public ApiResponse<Map<String, Object>> getCheckinStatistics(@RequestParam String checkinId) {
+    public ApiResponse<Map<String, Object>> getAttendanceRecordStatistics(
+            @RequestParam String checkinId,
+            @Valid @RequestBody PageRequestDTO requestDTO) {
         log.info("获取签到统计信息: checkinId={}", checkinId);
         Map<String, Object> response = courseService.getCheckinStatistics(checkinId);
         return ApiResponse.success(response);
-    }
-    
-    /**
-     * 获取课程签到统计信息
-     * 
-     * @param courseId 课程ID
-     * @return 签到统计信息
-     */
-    @GetMapping("/statistics")
-    @PreAuthorize("@courseSecurityService.isCourseCreator(#courseId) or hasRole('ADMIN')")
-    public ApiResponse<Map<String, Object>> getCourseStatistics(@RequestParam String courseId) {
-        log.info("获取课程签到统计: courseId={}", courseId);
-        
-        Map<String, Object> statistics = courseService.getCourseStatistics(courseId);
-        return ApiResponse.success(statistics);
     }
     
     // ========== 请求/响应数据类 ==========
@@ -475,26 +433,30 @@ public class CourseController {
          * 签到任务ID
          */
         @NotBlank(message = "签到任务ID不能为空")
-        private String courseId;
+        private String checkinId;
         
         /**
-         * 验证方式
+         * 验证方式 (如QR_CODE, LOCATION, WIFI等)
          */
         @NotBlank(message = "验证方式不能为空")
         private String verifyMethod;
         
         /**
-         * 位置信息
+         * 位置信息 (可选)，例如经纬度坐标 "118.803,32.064"
          */
         private String location;
         
         /**
-         * 设备信息
+         * 设备信息，例如设备类型、浏览器、操作系统等
+         * 推荐格式: "设备类型/浏览器/操作系统"，如 "Mobile/Chrome/Android" 或 "Desktop/Firefox/Windows"
          */
         private String device;
         
         /**
-         * 验证数据
+         * 验证数据 (可选)，根据验证方式不同可能包含不同内容
+         * - QR_CODE: 可以为空，会默认使用checkinId
+         * - LOCATION: 可包含精度信息
+         * - WIFI: 可包含WiFi名称或MAC地址等
          */
         private String verifyData;
     }

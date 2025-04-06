@@ -39,7 +39,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EntityNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiResponse<Void> handleEntityNotFoundException(EntityNotFoundException e) {
-        return ApiResponse.error(404, "资源不存在");
+        return ApiResponse.error(404, "请求的资源不存在：该数据可能已被删除或您没有正确的标识符");
     }
 
     /**
@@ -54,7 +54,7 @@ public class GlobalExceptionHandler {
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
-        return ApiResponse.error(400, "参数校验失败", errors);
+        return ApiResponse.error(400, "请求参数错误：请检查您提供的数据格式和内容", errors);
     }
 
     /**
@@ -69,7 +69,7 @@ public class GlobalExceptionHandler {
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
-        return ApiResponse.error(400, "参数绑定失败", errors);
+        return ApiResponse.error(400, "请求数据绑定失败：请确保您提供的数据类型和格式正确", errors);
     }
 
     /**
@@ -78,7 +78,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleConstraintViolationException(ConstraintViolationException e) {
-        return ApiResponse.error(400, e.getMessage());
+        return ApiResponse.error(400, "数据验证失败：" + e.getMessage());
     }
 
     /**
@@ -114,7 +114,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiResponse<Void> handleDataIntegrityViolationException(DataIntegrityViolationException e) {
-        return ApiResponse.error(409, "数据操作违反约束：可能有重复数据或引用关系错误");
+        return ApiResponse.error(409, "数据操作冲突：可能存在重复数据或违反了数据关联规则，请检查您的输入");
     }
 
     /**
@@ -124,6 +124,6 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception e) {
         // 记录异常日志
-        return ApiResponse.error(500, "服务器内部错误：" + e.getMessage());
+        return ApiResponse.error(500, "服务器处理请求时遇到错误：" + e.getMessage() + "，请稍后重试或联系系统管理员");
     }
 } 

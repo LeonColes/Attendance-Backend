@@ -141,23 +141,43 @@ public interface CourseService {
     
     /**
      * 移除课程成员
-     * 
+     *
      * @param courseId 课程ID
      * @param userId 用户ID
-     * @param reason 移除原因(可选)
+     * @param reason 移除原因
      * @return 是否成功
      */
     boolean removeCourseMember(String courseId, String userId, String reason);
     
     /**
-     * 提交签到（新版）
+     * 获取签到统计信息
      *
+     * @param checkinId 签到任务ID
+     * @return 签到统计信息
+     */
+    Map<String, Object> getCheckinStatistics(String checkinId);
+    
+    /**
+     * 提交签到
+     *
+     * @param taskId 签到任务ID
+     * @param verifyData 验证数据
+     * @param verifyMethod 验证方式
+     * @param location 位置信息
+     * @param device 设备信息
+     * @return 签到结果
+     */
+    Map<String, Object> submitCheckin(String taskId, String verifyData, String verifyMethod, String location, String device);
+    
+    /**
+     * 学生提交签到（新版接口）
+     * 
      * @param courseId 签到任务ID
-     * @param verifyMethod 验证方法
-     * @param location 位置
+     * @param verifyMethod 验证方式
+     * @param location 位置信息
      * @param device 设备信息
      * @param verifyData 验证数据
-     * @return 签到记录DTO
+     * @return 签到记录
      */
     CourseRecordDTO submitCheckIn(String courseId, String verifyMethod, String location, String device, String verifyData);
     
@@ -165,30 +185,22 @@ public interface CourseService {
      * 获取用户在课程中的所有签到记录
      *
      * @param courseId 课程ID
-     * @param userId 用户ID（可选，不提供则查询当前用户）
-     * @param page 页码
-     * @param size 每页大小
-     * @return 签到记录数据
-     */
-    Map<String, Object> getUserCourseRecords(String courseId, String userId, int page, int size);
-    
-    /**
-     * 获取签到码
-     *
-     * @param checkinId 签到任务ID
-     * @return 签到码
-     */
-    String generateCheckinCode(String checkinId);
-    
-    /**
-     * 获取签到任务的签到记录（带分页）
-     *
-     * @param checkinId 签到任务ID
+     * @param userId 用户ID（不传则查当前用户）
      * @param page 页码
      * @param size 每页大小
      * @return 签到记录分页数据
      */
-    Map<String, Object> getCheckinRecords(String checkinId, int page, int size);
+    Map<String, Object> getUserCourseRecords(String courseId, String userId, int page, int size);
+    
+    /**
+     * 获取签到任务详情（简化版）
+     *
+     * @param checkinId 签到任务ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 签到任务详情
+     */
+    Map<String, Object> getCheckinDetail(String checkinId, int page, int size);
     
     /**
      * 获取课程的所有签到统计（带分页）
@@ -201,91 +213,20 @@ public interface CourseService {
     Map<String, Object> getCourseAttendanceStats(String courseId, int page, int size);
     
     /**
-     * 获取签到任务详情
-     * 教师可以看到学生签到统计，学生只能看到自己的签到状态
+     * 获取签到任务列表
      *
-     * @param checkinId 签到任务ID
+     * @param courseId 父课程ID
      * @param page 页码
      * @param size 每页大小
-     * @return 签到任务详情
-     */
-    Map<String, Object> getCheckinDetail(String checkinId, int page, int size);
-    
-    /**
-     * 获取课程的所有签到任务列表（带分页）
-     *
-     * @param courseId 课程ID
-     * @param page 页码
-     * @param size 每页大小
-     * @return 签到任务分页数据
+     * @return 签到任务列表
      */
     Map<String, Object> getAttendanceList(String courseId, int page, int size);
-    
-    /**
-     * 获取课程的签到统计信息
-     *
-     * @param courseId 课程ID
-     * @return 课程签到统计信息
-     */
-    Map<String, Object> getCourseAttendanceDetail(String courseId);
-    
-    /**
-     * 获取签到任务详情
-     * 教师可以看到学生签到统计，学生只能看到自己的签到状态
-     *
-     * @param checkinId 签到任务ID
-     * @param page 页码
-     * @param size 每页大小
-     * @return 签到任务详情
-     */
-    Map<String, Object> getCheckinDetails(String checkinId, int page, int size);
     
     /**
      * 获取课程签到统计信息
      *
      * @param courseId 课程ID
-     * @return 统计信息
+     * @return 课程签到统计信息
      */
-    Map<String, Object> getCourseStatistics(String courseId);
-    
-    /**
-     * 获取签到任务详情(老师视角)
-     * 老师查看特定签到任务的所有学生签到记录
-     *
-     * @param checkinId 签到任务ID
-     * @param page 页码
-     * @param size 每页大小
-     * @return 签到任务详情和签到记录
-     */
-    Map<String, Object> getCheckinTeacherView(String checkinId, int page, int size);
-    
-    /**
-     * 获取签到任务详情(学生视角)
-     * 学生查看自己在课程中所有签到任务的签到状态
-     *
-     * @param courseId 课程ID
-     * @return 学生的签到状态列表
-     */
-    Map<String, Object> getCheckinStudentView(String courseId);
-    
-    /**
-     * 获取签到任务统计信息
-     * 包括已签到和未签到学生名单和数量统计
-     *
-     * @param checkinId 签到任务ID
-     * @return 签到统计信息
-     */
-    Map<String, Object> getCheckinStatistics(String checkinId);
-    
-    /**
-     * 提交签到（旧版）
-     *
-     * @param taskId 签到任务ID
-     * @param verifyData 验证数据
-     * @param verifyMethod 验证方法
-     * @param location 位置
-     * @param device 设备信息
-     * @return 签到结果信息
-     */
-    Map<String, Object> submitCheckin(String taskId, String verifyData, String verifyMethod, String location, String device);
+    Map<String, Object> getCourseAttendanceDetail(String courseId);
 } 
