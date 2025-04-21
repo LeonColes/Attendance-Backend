@@ -50,6 +50,15 @@ public interface CourseRepository extends JpaRepository<Course, String> {
     List<Course> findByType(String type);
     
     /**
+     * 根据类型和状态查找
+     * 
+     * @param type 类型 (COURSE/CHECKIN)
+     * @param status 状态
+     * @return 课程/任务列表
+     */
+    List<Course> findByTypeAndStatus(String type, String status);
+    
+    /**
      * 根据状态和类型查找
      * 
      * @param status 状态

@@ -47,6 +47,11 @@ public class CourseServiceImpl implements CourseService {
         Course course = courseRepository.findById(id)
             .orElseThrow(() -> new BusinessException("课程或签到任务不存在"));
         
+        // 如果是课程类型，检查是否需要更新状态
+        if (SystemConstants.CourseType.COURSE.equals(course.getType())) {
+            checkAndUpdateCourseStatus(course);
+        }
+        
         User creator = userRepository.findById(course.getCreatorId())
             .orElse(null);
         
@@ -60,9 +65,56 @@ public class CourseServiceImpl implements CourseService {
         return dto;
     }
     
+    /**
+     * 检查并更新课程状态
+     * 根据课程的结束日期和当前日期，自动更新课程状态
+     *
+     * @param course 需要检查的课程
+     * @return 如果状态发生更改则返回true
+     */
+    private boolean checkAndUpdateCourseStatus(Course course) {
+        if (!SystemConstants.CourseType.COURSE.equals(course.getType())) {
+            return false;
+        }
+        
+        LocalDate today = LocalDate.now();
+        boolean updated = false;
+        
+        // 检查ACTIVE状态的过期课程
+        if (SystemConstants.CourseStatus.ACTIVE.equals(course.getStatus()) && 
+            course.getEndDate() != null && today.isAfter(course.getEndDate())) {
+            
+            log.info("自动更新课程状态: 课程 [{}] ({}) 已过结束日期 [{}]，状态由 [{}] 更新为 [{}]", 
+                course.getId(), course.getName(), course.getEndDate(), 
+                course.getStatus(), SystemConstants.CourseStatus.FINISHED);
+            
+            course.setStatus(SystemConstants.CourseStatus.FINISHED);
+            courseRepository.save(course);
+            updated = true;
+        }
+        
+        // 检查FINISHED状态的长期未使用课程
+        else if (SystemConstants.CourseStatus.FINISHED.equals(course.getStatus()) && 
+            course.getEndDate() != null && today.minusDays(30).isAfter(course.getEndDate())) {
+            
+            log.info("自动归档课程: 课程 [{}] ({}) 已结束超过30天，状态由 [{}] 更新为 [{}]", 
+                course.getId(), course.getName(), course.getStatus(), 
+                SystemConstants.CourseStatus.ARCHIVED);
+            
+            course.setStatus(SystemConstants.CourseStatus.ARCHIVED);
+            courseRepository.save(course);
+            updated = true;
+        }
+        
+        return updated;
+    }
+    
     @Override
     public List<CourseDTO> getAllCourses() {
         List<Course> courses = courseRepository.findByType(SystemConstants.CourseType.COURSE);
+        
+        // 检查并更新课程状态
+        courses.forEach(this::checkAndUpdateCourseStatus);
         
         return courses.stream()
             .map(course -> {
@@ -115,6 +167,9 @@ public class CourseServiceImpl implements CourseService {
         else {
             courses = courseRepository.findByType(SystemConstants.CourseType.COURSE);
         }
+        
+        // 检查并更新课程状态
+        courses.forEach(this::checkAndUpdateCourseStatus);
         
         return courses.stream()
             .map(course -> {
@@ -178,6 +233,9 @@ public class CourseServiceImpl implements CourseService {
         // 将课程列表转换为DTO
         List<CourseDTO> courseDTOs = coursePageResult.getContent().stream()
             .map(course -> {
+                // 检查并更新课程状态
+                checkAndUpdateCourseStatus(course);
+                
                 User creator = userRepository.findById(course.getCreatorId()).orElse(null);
                 CourseDTO dto = convertToDTO(course, creator);
                 dto.setMemberCount((int) courseUserRepository.countByCourseIdAndActiveTrue(course.getId()));
@@ -1092,6 +1150,9 @@ public class CourseServiceImpl implements CourseService {
             throw new BusinessException("指定ID不是有效的课程");
         }
         
+        // 检查并更新课程状态
+        checkAndUpdateCourseStatus(course);
+        
         // 获取当前登录用户
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
@@ -1436,6 +1497,7 @@ public class CourseServiceImpl implements CourseService {
         dto.setUserFullName(currentUser.getFullName());
         dto.setRole(courseUser.getRole());
         dto.setJoinedAt(courseUser.getJoinedAt());
+        
         return dto;
     }
 
