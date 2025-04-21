@@ -58,20 +58,7 @@ spring:
     serialization:
       write-dates-as-timestamps: false
   
-  # Redis配置
-  redis:
-    host: localhost
-    port: 6379
-    database: 0
-    timeout: 10000
-    lettuce:
-      pool:
-        max-active: 8
-        max-wait: -1
-        max-idle: 8
-        min-idle: 0
-
-# 应用服务配置
+  # 应用服务配置
 server:
   port: 8080
   servlet:

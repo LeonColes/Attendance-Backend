@@ -41,8 +41,6 @@ public class SecurityConfig {
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/test/public").permitAll() // 测试公开接口
-                .requestMatchers("/test/login").permitAll() // 测试登录接口
-                .requestMatchers("/h2-console/**").permitAll() // 仅开发环境
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // Swagger
                 // 受保护端点
                 .requestMatchers("/admin/**").hasRole("ADMIN")

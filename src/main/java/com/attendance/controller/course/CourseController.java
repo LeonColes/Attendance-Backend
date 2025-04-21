@@ -165,7 +165,7 @@ public class CourseController {
      * @return 成员列表
      */
     @PostMapping("/members/list")
-    @PreAuthorize("@courseSecurityService.isCourseCreator(#courseId) or hasRole('ADMIN')")
+    @PreAuthorize("@courseSecurityService.isCourseMember(#courseId)")
     public ApiResponse<Map<String, Object>> getCourseMembers(
             @RequestParam String courseId,
             @Valid @RequestBody PageRequestDTO requestDTO) {
