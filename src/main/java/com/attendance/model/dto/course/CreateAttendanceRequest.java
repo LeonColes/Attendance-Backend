@@ -33,12 +33,16 @@ public class CreateAttendanceRequest {
      * 签到开始时间
      */
     @NotNull(message = "签到开始时间不能为空")
+    @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;
     
     /**
      * 签到结束时间
      */
     @NotNull(message = "签到结束时间不能为空")
+    @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime endTime;
     
     /**
@@ -55,4 +59,4 @@ public class CreateAttendanceRequest {
      * WIFI: {"ssid": "WiFi名称", "bssid": "MAC地址"}
      */
     private String verifyParams;
-} 
+}

@@ -80,11 +80,13 @@ public class CourseDTO {
     /**
      * 签到开始时间 (仅签到任务类型有效)
      */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime checkinStartTime;
     
     /**
      * 签到结束时间 (仅签到任务类型有效)
      */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime checkinEndTime;
     
     /**
@@ -117,10 +119,12 @@ public class CourseDTO {
     /**
      * 创建时间
      */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
     
     /**
      * 更新时间
      */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updatedAt;
-} 
+}

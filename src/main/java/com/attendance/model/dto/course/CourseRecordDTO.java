@@ -64,6 +64,7 @@ public class CourseRecordDTO {
     /**
      * 签到时间
      */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime checkInTime;
     
     /**
@@ -94,10 +95,12 @@ public class CourseRecordDTO {
     /**
      * 创建时间
      */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
     
     /**
      * 更新时间
      */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updatedAt;
-} 
+}

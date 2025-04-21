@@ -54,5 +54,6 @@ public class CourseUserDTO {
     /**
      * 加入时间
      */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime joinedAt;
-} 
+}
