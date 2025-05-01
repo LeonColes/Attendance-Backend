@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -373,21 +374,21 @@ public class CourseServiceImpl implements CourseService {
         String username = authentication.getName();
         
         User creator = userRepository.findByUsername(username)
-            .orElseThrow(() -> new BusinessException("用户不存在"));
+            .orElseThrow(() -> new BusinessException("用户验证失败：无法获取当前用户信息，请重新登录"));
         
         // 查找父课程
         Course parentCourse = courseRepository.findById(parentCourseId)
-            .orElseThrow(() -> new BusinessException("课程不存在"));
+            .orElseThrow(() -> new BusinessException("课程不存在：未找到ID为" + parentCourseId + "的课程，请确认课程ID是否正确"));
         
         // 验证用户是否为课程创建者
         if (!parentCourse.getCreatorId().equals(creator.getId()) && 
             !isAdmin(authentication)) {
-            throw new BusinessException("只有课程创建者可以创建签到任务");
+            throw new BusinessException("权限不足：只有课程创建者可以创建签到任务，请确认您是否有权限操作该课程");
         }
         
         // 验证课程类型
         if (!SystemConstants.CourseType.COURSE.equals(parentCourse.getType())) {
-            throw new BusinessException("只能在普通课程下创建签到任务");
+            throw new BusinessException("操作失败：只能在普通课程下创建签到任务，当前课程类型为" + parentCourse.getType());
         }
         
         // 验证签到时间
@@ -395,13 +396,44 @@ public class CourseServiceImpl implements CourseService {
             throw new BusinessException("开始时间不能晚于结束时间");
         }
         
-        if (endTime != null && endTime.isBefore(LocalDateTime.now())) {
+        // 添加时间验证日志
+        log.info("时间验证 - 当前系统时间: {}, 时区: {}", 
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+            TimeZone.getDefault().getID());
+        log.info("时间验证 - 开始时间: {}, 结束时间: {}", 
+            startTime != null ? startTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "null",
+            endTime != null ? endTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "null");
+        
+        LocalDateTime now = LocalDateTime.now();
+        if (startTime != null && startTime.isBefore(now)) {
+            log.error("时间验证失败 - 开始时间早于当前时间: {} < {}", 
+                startTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            throw new BusinessException("开始时间不能早于当前时间");
+        }
+        
+        if (endTime != null && endTime.isBefore(now)) {
+            log.error("时间验证失败 - 结束时间早于当前时间: {} < {}", 
+                endTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             throw new BusinessException("结束时间不能早于当前时间");
+        }
+        
+        // 验证时间范围合理性
+        if (startTime != null && endTime != null) {
+            Duration duration = Duration.between(startTime, endTime);
+            if (duration.toMinutes() < 5) {
+                throw new BusinessException("签到时间范围至少需要5分钟");
+            }
+            if (duration.toHours() > 24) {
+                throw new BusinessException("单次签到时间范围不能超过24小时");
+            }
         }
         
         // 验证签到类型
         if (!SystemConstants.CheckInType.isValidType(checkinType)) {
-            throw new BusinessException("无效的签到类型");
+            throw new BusinessException("签到类型错误：无效的签到类型" + checkinType + 
+                "，支持的签到类型包括：QR_CODE（二维码签到）、LOCATION（位置签到）、WIFI（WiFi签到）、MANUAL（手动签到）");
         }
         
         // 创建签到任务
