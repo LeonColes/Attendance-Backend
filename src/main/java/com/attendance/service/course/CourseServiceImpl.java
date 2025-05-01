@@ -409,24 +409,38 @@ public class CourseServiceImpl implements CourseService {
             log.error("时间验证失败 - 开始时间早于当前时间: {} < {}", 
                 startTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                 now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-            throw new BusinessException("开始时间不能早于当前时间");
+            throw new BusinessException("开始时间(" + 
+                startTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                ")不能早于当前时间(" + 
+                now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + ")");
         }
         
         if (endTime != null && endTime.isBefore(now)) {
             log.error("时间验证失败 - 结束时间早于当前时间: {} < {}", 
                 endTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                 now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-            throw new BusinessException("结束时间不能早于当前时间");
+            throw new BusinessException("结束时间(" + 
+                endTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                ")不能早于当前时间(" + 
+                now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + ")");
         }
         
         // 验证时间范围合理性
         if (startTime != null && endTime != null) {
             Duration duration = Duration.between(startTime, endTime);
             if (duration.toMinutes() < 5) {
-                throw new BusinessException("签到时间范围至少需要5分钟");
+                throw new BusinessException("签到时间范围过短：开始时间(" + 
+                    startTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                    ")到结束时间(" + 
+                    endTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                    ")至少需要5分钟");
             }
             if (duration.toHours() > 24) {
-                throw new BusinessException("单次签到时间范围不能超过24小时");
+                throw new BusinessException("签到时间范围过长：开始时间(" + 
+                    startTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                    ")到结束时间(" + 
+                    endTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                    ")不能超过24小时");
             }
         }
         
