@@ -2,6 +2,7 @@ package com.attendance.model.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
@@ -19,6 +20,7 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "courses")
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
@@ -116,6 +118,14 @@ public class Course {
      */
     @Column(name = "parent_course_id")
     private String parentCourseId;
+
+    /**
+     * 是否有效，用于逻辑删除
+     * true: 有效，false: 已删除
+     */
+    @Builder.Default
+    @Column(name = "active", nullable = false)
+    private Boolean active = true;
 
     /**
      * 创建时间

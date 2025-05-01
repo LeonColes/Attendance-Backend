@@ -229,4 +229,37 @@ public interface CourseService {
      * @return 课程签到统计信息
      */
     Map<String, Object> getCourseAttendanceDetail(String courseId);
+    
+    /**
+     * 删除课程（逻辑删除）
+     * 只有课程创建者或管理员可以删除课程
+     * 删除课程会同时标记该课程下的所有签到任务和签到记录为已删除
+     *
+     * @param courseId 课程ID
+     * @return 是否删除成功
+     */
+    boolean deleteCourse(String courseId);
+    
+    /**
+     * 删除签到任务（逻辑删除）
+     * 只有签到任务创建者或管理员可以删除签到任务
+     * 删除签到任务会同时标记该任务下的所有签到记录为已删除
+     *
+     * @param checkinId 签到任务ID
+     * @return 是否删除成功
+     */
+    boolean deleteCheckinTask(String checkinId);
+    
+    /**
+     * 更新课程信息
+     * 只有课程创建者或管理员可以更新课程
+     *
+     * @param courseId 课程ID
+     * @param name 课程名称
+     * @param description 课程描述
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 更新后的课程
+     */
+    CourseDTO updateCourse(String courseId, String name, String description, LocalDate startDate, LocalDate endDate);
 } 

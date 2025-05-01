@@ -4,9 +4,11 @@ import com.attendance.model.entity.CourseRecord;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -111,4 +113,14 @@ public interface CourseRecordRepository extends JpaRepository<CourseRecord, Stri
      * @return 签到记录数
      */
     long countByCourseId(String courseId);
+    
+    /**
+     * 删除指定签到任务的所有签到记录
+     * 
+     * @param courseId 签到任务ID
+     */
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM CourseRecord cr WHERE cr.courseId = :courseId")
+    void deleteAllByCourseId(@Param("courseId") String courseId);
 } 

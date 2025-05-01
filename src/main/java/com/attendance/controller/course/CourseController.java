@@ -27,6 +27,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -354,6 +355,78 @@ public class CourseController {
         return ApiResponse.success(response);
     }
     
+    /**
+     * 删除课程（逻辑删除）
+     * 只有课程创建者或管理员可以删除课程
+     * 
+     * @param courseId 课程ID
+     * @return 删除结果
+     */
+    @PostMapping("/delete")
+    @PreAuthorize("@courseSecurityService.isCourseCreator(#courseId) or hasRole('ADMIN')")
+    public ApiResponse<Boolean> deleteCourse(@RequestParam String courseId) {
+        log.info("删除课程请求(逻辑删除): courseId={}", courseId);
+        boolean result = courseService.deleteCourse(courseId);
+        return ApiResponse.success("课程删除成功", result);
+    }
+    
+    /**
+     * 删除签到任务（逻辑删除）
+     * 只有签到任务创建者或管理员可以删除签到任务
+     * 
+     * @param checkinId 签到任务ID
+     * @return 删除结果
+     */
+    @PostMapping("/attendance/delete")
+    @PreAuthorize("@courseSecurityService.isCheckinCreator(#checkinId) or hasRole('ADMIN')")
+    public ApiResponse<Boolean> deleteAttendance(@RequestParam String checkinId) {
+        log.info("删除签到任务请求(逻辑删除): checkinId={}", checkinId);
+        boolean result = courseService.deleteCheckinTask(checkinId);
+        return ApiResponse.success("签到任务删除成功", result);
+    }
+    
+    /**
+     * 移除课程成员
+     * 只有课程创建者或管理员可以移除成员
+     * 
+     * @param request 移除成员请求
+     * @return 移除结果
+     */
+    @PostMapping("/members/remove")
+    @PreAuthorize("@courseSecurityService.isCourseCreator(#request.courseId) or hasRole('ADMIN')")
+    public ApiResponse<Boolean> removeMember(@Valid @RequestBody RemoveMemberRequest request) {
+        log.info("移除课程成员请求: courseId={}, userId={}", request.getCourseId(), request.getUserId());
+        boolean result = courseService.removeCourseMember(
+            request.getCourseId(), 
+            request.getUserId(), 
+            request.getReason()
+        );
+        return ApiResponse.success("成员移除成功", result);
+    }
+    
+    /**
+     * 更新课程信息
+     * 只有课程创建者或管理员可以更新课程
+     * 
+     * @param request 更新课程请求
+     * @return 更新后的课程
+     */
+    @PostMapping("/update")
+    @PreAuthorize("@courseSecurityService.isCourseCreator(#request.courseId) or hasRole('ADMIN')")
+    public ApiResponse<CourseDTO> updateCourse(@Valid @RequestBody UpdateCourseRequest request) {
+        log.info("更新课程请求: {}", request);
+        
+        CourseDTO courseDTO = courseService.updateCourse(
+            request.getCourseId(),
+            request.getName(),
+            request.getDescription(),
+            request.getStartDate(),
+            request.getEndDate()
+        );
+        
+        return ApiResponse.success("课程更新成功", courseDTO);
+    }
+    
     // ========== 请求/响应数据类 ==========
     
     /**
@@ -459,5 +532,38 @@ public class CourseController {
          * - WIFI: 可包含WiFi名称或MAC地址等
          */
         private String verifyData;
+    }
+    
+    /**
+     * 更新课程请求类
+     */
+    @Data
+    public static class UpdateCourseRequest {
+        
+        /**
+         * 课程ID
+         */
+        @NotBlank(message = "课程ID不能为空")
+        private String courseId;
+        
+        /**
+         * 课程名称
+         */
+        private String name;
+        
+        /**
+         * 课程描述
+         */
+        private String description;
+        
+        /**
+         * 开始日期
+         */
+        private LocalDate startDate;
+        
+        /**
+         * 结束日期
+         */
+        private LocalDate endDate;
     }
 } 

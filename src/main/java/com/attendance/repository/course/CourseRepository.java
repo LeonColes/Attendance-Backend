@@ -73,6 +73,15 @@ public interface CourseRepository extends JpaRepository<Course, String> {
      * @param parentCourseId 父课程ID
      * @return 签到任务列表
      */
+    List<Course> findByParentCourseId(String parentCourseId);
+    
+    /**
+     * 查找特定课程下的所有指定类型的签到任务
+     * 
+     * @param parentCourseId 父课程ID
+     * @param type 类型
+     * @return 签到任务列表
+     */
     List<Course> findByParentCourseIdAndType(String parentCourseId, String type);
     
     /**

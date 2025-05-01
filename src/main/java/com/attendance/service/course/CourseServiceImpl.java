@@ -502,29 +502,61 @@ public class CourseServiceImpl implements CourseService {
     
     @Override
     @Transactional
-    public CourseDTO updateCourseStatus(String id, String status) {
-        Course course = courseRepository.findById(id)
-            .orElseThrow(() -> new BusinessException("课程或签到任务不存在"));
+    public CourseDTO updateCourse(String courseId, String name, String description, LocalDate startDate, LocalDate endDate) {
+        // 获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
         
-        if (SystemConstants.CourseType.COURSE.equals(course.getType())) {
-            // 课程状态验证
-            if (!SystemConstants.CourseStatus.isValidStatus(status)) {
-                throw new BusinessException("非法的课程状态");
-            }
-        } else {
-            // 签到任务状态验证
-            if (!SystemConstants.TaskStatus.isValidStatus(status)) {
-                throw new BusinessException("非法的签到任务状态");
-            }
+        User currentUser = userRepository.findByUsername(username)
+            .orElseThrow(() -> new BusinessException("用户不存在"));
+        
+        // 查找课程
+        Course course = courseRepository.findById(courseId)
+            .orElseThrow(() -> new BusinessException("课程不存在"));
+        
+        // 验证权限：只有课程创建者和管理员可以更新课程
+        if (!course.getCreatorId().equals(currentUser.getId()) && !isAdmin(authentication)) {
+            throw new BusinessException("您没有权限更新该课程");
         }
         
-        course.setStatus(status);
+        // 验证课程类型必须是COURSE
+        if (!SystemConstants.CourseType.COURSE.equals(course.getType())) {
+            throw new BusinessException("只能更新课程，不能更新签到任务");
+        }
+        
+        // 验证日期
+        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+            throw new BusinessException("开始日期不能晚于结束日期");
+        }
+        
+        // 更新课程信息
+        if (name != null && !name.trim().isEmpty()) {
+            course.setName(name);
+        }
+        
+        if (description != null) {
+            course.setDescription(description);
+        }
+        
+        if (startDate != null) {
+            course.setStartDate(startDate);
+        }
+        
+        if (endDate != null) {
+            course.setEndDate(endDate);
+        }
+        
+        // 保存更新
         Course updatedCourse = courseRepository.save(course);
         
+        // 返回更新后的课程DTO
         User creator = userRepository.findById(updatedCourse.getCreatorId())
             .orElse(null);
         
-        return convertToDTO(updatedCourse, creator);
+        CourseDTO courseDTO = convertToDTO(updatedCourse, creator);
+        courseDTO.setMemberCount((int) courseUserRepository.countByCourseIdAndActiveTrue(updatedCourse.getId()));
+        
+        return courseDTO;
     }
     
     @Override
@@ -1664,5 +1696,136 @@ public class CourseServiceImpl implements CourseService {
         response.put("courseInfo", courseInfo);
         
         return response;
+    }
+
+    /**
+     * 实现删除课程方法（逻辑删除）
+     */
+    @Override
+    @Transactional
+    public boolean deleteCourse(String courseId) {
+        // 获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        User currentUser = userRepository.findByUsername(username)
+            .orElseThrow(() -> new BusinessException("用户不存在"));
+        
+        // 查找课程
+        Course course = courseRepository.findById(courseId)
+            .orElseThrow(() -> new BusinessException("课程不存在"));
+        
+        // 验证权限：只有课程创建者和管理员可以删除课程
+        if (!course.getCreatorId().equals(currentUser.getId()) && !isAdmin(authentication)) {
+            throw new BusinessException("您没有权限删除该课程");
+        }
+        
+        // 验证课程类型必须是COURSE
+        if (!SystemConstants.CourseType.COURSE.equals(course.getType())) {
+            throw new BusinessException("只能删除课程，不能删除签到任务");
+        }
+        
+        try {
+            // 1. 逻辑删除课程下的所有签到任务
+            List<Course> checkinTasks = courseRepository.findByParentCourseId(courseId);
+            for (Course checkinTask : checkinTasks) {
+                checkinTask.setActive(false);
+                checkinTask.setStatus(SystemConstants.CourseStatus.DELETED);
+                courseRepository.save(checkinTask);
+                
+                // 逻辑删除签到记录
+                List<CourseRecord> records = courseRecordRepository.findByCourseId(checkinTask.getId());
+                for (CourseRecord record : records) {
+                    record.setActive(false);
+                    courseRecordRepository.save(record);
+                }
+            }
+            
+            // 2. 逻辑删除课程
+            course.setActive(false);
+            course.setStatus(SystemConstants.CourseStatus.DELETED);
+            courseRepository.save(course);
+            
+            log.info("成功删除课程(逻辑删除): ID={}, 名称={}, 创建者={}", courseId, course.getName(), username);
+            return true;
+        } catch (Exception e) {
+            log.error("删除课程失败: ID={}, 原因={}", courseId, e.getMessage(), e);
+            throw new BusinessException("删除课程失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 实现删除签到任务方法（逻辑删除）
+     */
+    @Override
+    @Transactional
+    public boolean deleteCheckinTask(String checkinId) {
+        // 获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        User currentUser = userRepository.findByUsername(username)
+            .orElseThrow(() -> new BusinessException("用户不存在"));
+        
+        // 查找签到任务
+        Course checkinTask = courseRepository.findById(checkinId)
+            .orElseThrow(() -> new BusinessException("签到任务不存在"));
+        
+        // 验证权限：只有签到任务创建者和管理员可以删除签到任务
+        if (!checkinTask.getCreatorId().equals(currentUser.getId()) && !isAdmin(authentication)) {
+            throw new BusinessException("您没有权限删除该签到任务");
+        }
+        
+        // 验证类型必须是CHECKIN
+        if (!SystemConstants.CourseType.CHECKIN.equals(checkinTask.getType())) {
+            throw new BusinessException("只能删除签到任务，不能删除课程");
+        }
+        
+        try {
+            // 1. 逻辑删除签到记录
+            List<CourseRecord> records = courseRecordRepository.findByCourseId(checkinId);
+            for (CourseRecord record : records) {
+                record.setActive(false);
+                courseRecordRepository.save(record);
+            }
+            
+            // 2. 逻辑删除签到任务
+            checkinTask.setActive(false);
+            checkinTask.setStatus(SystemConstants.CourseStatus.DELETED);
+            courseRepository.save(checkinTask);
+            
+            log.info("成功删除签到任务(逻辑删除): ID={}, 名称={}, 创建者={}", checkinId, checkinTask.getName(), username);
+            return true;
+        } catch (Exception e) {
+            log.error("删除签到任务失败: ID={}, 原因={}", checkinId, e.getMessage(), e);
+            throw new BusinessException("删除签到任务失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public CourseDTO updateCourseStatus(String id, String status) {
+        Course course = courseRepository.findById(id)
+            .orElseThrow(() -> new BusinessException("课程或签到任务不存在"));
+        
+        if (SystemConstants.CourseType.COURSE.equals(course.getType())) {
+            // 课程状态验证
+            if (!SystemConstants.CourseStatus.isValidStatus(status)) {
+                throw new BusinessException("非法的课程状态");
+            }
+        } else {
+            // 签到任务状态验证
+            if (!SystemConstants.TaskStatus.isValidStatus(status)) {
+                throw new BusinessException("非法的签到任务状态");
+            }
+        }
+        
+        course.setStatus(status);
+        Course updatedCourse = courseRepository.save(course);
+        
+        User creator = userRepository.findById(updatedCourse.getCreatorId())
+            .orElse(null);
+        
+        return convertToDTO(updatedCourse, creator);
     }
 } 

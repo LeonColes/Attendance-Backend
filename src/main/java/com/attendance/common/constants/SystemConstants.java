@@ -209,11 +209,17 @@ public final class SystemConstants {
         public static final String ARCHIVED = "ARCHIVED";
         
         /**
+         * 已删除（逻辑删除）
+         */
+        public static final String DELETED = "DELETED";
+        
+        /**
          * 判断是否是有效状态
          */
         public static boolean isValidStatus(String status) {
             return CREATED.equals(status) || ACTIVE.equals(status) || 
-                   FINISHED.equals(status) || ARCHIVED.equals(status);
+                   FINISHED.equals(status) || ARCHIVED.equals(status) ||
+                   DELETED.equals(status);
         }
     }
     

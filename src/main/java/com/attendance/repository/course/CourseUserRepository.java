@@ -2,9 +2,11 @@ package com.attendance.repository.course;
 
 import com.attendance.model.entity.CourseUser;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -172,4 +174,14 @@ public interface CourseUserRepository extends JpaRepository<CourseUser, String> 
      */
     @Query("SELECT cu.userId FROM CourseUser cu WHERE cu.courseId = :courseId AND cu.role = :role AND cu.active = true")
     List<String> findUserIdsByCourseIdAndRole(@Param("courseId") String courseId, @Param("role") String role);
+    
+    /**
+     * 删除指定课程的所有成员关系
+     * 
+     * @param courseId 课程ID
+     */
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM CourseUser cu WHERE cu.courseId = :courseId")
+    void deleteAllByCourseId(@Param("courseId") String courseId);
 }

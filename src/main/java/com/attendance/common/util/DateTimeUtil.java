@@ -4,7 +4,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoField;
 import java.util.Date;
 
 /**
@@ -52,6 +54,16 @@ public class DateTimeUtil {
             DateTimeFormatter.ofPattern("yyyy-MM-dd[ ]['T']HH:mm:ss");
     
     /**
+     * 灵活的日期时间格式化器，支持小时位缺少前导零的情况
+     * 例如: 2025-05-02 0:00:00
+     */
+    public static final DateTimeFormatter LENIENT_DATETIME_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("yyyy-MM-dd[ ]['T']")
+            .appendValue(ChronoField.HOUR_OF_DAY)
+            .appendPattern(":mm:ss")
+            .toFormatter();
+    
+    /**
      * 格式化LocalDateTime为标准格式字符串
      *
      * @param dateTime 日期时间
@@ -79,7 +91,7 @@ public class DateTimeUtil {
     
     /**
      * 解析日期时间字符串为LocalDateTime
-     * 支持ISO格式和标准格式
+     * 支持ISO格式和标准格式，以及非标准格式如小时位缺少前导零
      *
      * @param dateTimeStr 日期时间字符串
      * @return 解析后的LocalDateTime
@@ -92,6 +104,33 @@ public class DateTimeUtil {
         try {
             return LocalDateTime.parse(dateTimeStr, FLEXIBLE_DATETIME_FORMATTER);
         } catch (DateTimeParseException e) {
+            try {
+                // 尝试使用更宽松的格式解析器，处理小时位缺少前导零的情况
+                // 例如: 2025-05-02 0:00:00
+                return LocalDateTime.parse(dateTimeStr, LENIENT_DATETIME_FORMATTER);
+            } catch (DateTimeParseException ignored) {
+                // 忽略此异常，继续尝试其他格式
+            }
+            
+            try {
+                // 尝试手动格式化处理并解析
+                if (dateTimeStr.matches("\\d{4}-\\d{2}-\\d{2} \\d{1}:\\d{2}:\\d{2}")) {
+                    // 处理小时位缺少前导零的情况
+                    String[] parts = dateTimeStr.split(" ");
+                    String datePart = parts[0];
+                    String[] timeParts = parts[1].split(":");
+                    String formattedTime = String.format("%02d:%s:%s", 
+                                         Integer.parseInt(timeParts[0]), 
+                                         timeParts[1], 
+                                         timeParts[2]);
+                    String formattedDateTime = datePart + " " + formattedTime;
+                    
+                    return LocalDateTime.parse(formattedDateTime, STANDARD_DATETIME_FORMATTER);
+                }
+            } catch (Exception ignored) {
+                // 忽略此异常，继续尝试其他格式
+            }
+            
             try {
                 // 尝试手动去除T字符
                 if (dateTimeStr.contains("T")) {
