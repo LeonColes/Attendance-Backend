@@ -2,6 +2,7 @@ package com.attendance.service.course;
 
 import com.attendance.common.constants.SystemConstants;
 import com.attendance.common.exception.BusinessException;
+import com.attendance.common.util.DateTimeUtil;
 import com.attendance.model.dto.course.CourseDTO;
 import com.attendance.model.dto.course.CourseUserDTO;
 import com.attendance.model.dto.course.CourseRecordDTO;
@@ -398,31 +399,31 @@ public class CourseServiceImpl implements CourseService {
         
         // 添加时间验证日志
         log.info("时间验证 - 当前系统时间: {}, 时区: {}", 
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+            DateTimeUtil.formatDateTime(LocalDateTime.now()),
             TimeZone.getDefault().getID());
         log.info("时间验证 - 开始时间: {}, 结束时间: {}", 
-            startTime != null ? startTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "null",
-            endTime != null ? endTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "null");
+            startTime != null ? DateTimeUtil.formatDateTime(startTime) : "null",
+            endTime != null ? DateTimeUtil.formatDateTime(endTime) : "null");
         
         LocalDateTime now = LocalDateTime.now();
         if (startTime != null && startTime.isBefore(now)) {
             log.error("时间验证失败 - 开始时间早于当前时间: {} < {}", 
-                startTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                DateTimeUtil.formatDateTime(startTime),
+                DateTimeUtil.formatDateTime(now));
             throw new BusinessException("开始时间(" + 
-                startTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                DateTimeUtil.formatDateTime(startTime) + 
                 ")不能早于当前时间(" + 
-                now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + ")");
+                DateTimeUtil.formatDateTime(now) + ")");
         }
         
         if (endTime != null && endTime.isBefore(now)) {
             log.error("时间验证失败 - 结束时间早于当前时间: {} < {}", 
-                endTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                DateTimeUtil.formatDateTime(endTime),
+                DateTimeUtil.formatDateTime(now));
             throw new BusinessException("结束时间(" + 
-                endTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                DateTimeUtil.formatDateTime(endTime) + 
                 ")不能早于当前时间(" + 
-                now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + ")");
+                DateTimeUtil.formatDateTime(now) + ")");
         }
         
         // 验证时间范围合理性
@@ -430,16 +431,16 @@ public class CourseServiceImpl implements CourseService {
             Duration duration = Duration.between(startTime, endTime);
             if (duration.toMinutes() < 5) {
                 throw new BusinessException("签到时间范围过短：开始时间(" + 
-                    startTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                    DateTimeUtil.formatDateTime(startTime) + 
                     ")到结束时间(" + 
-                    endTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                    DateTimeUtil.formatDateTime(endTime) + 
                     ")至少需要5分钟");
             }
             if (duration.toHours() > 24) {
                 throw new BusinessException("签到时间范围过长：开始时间(" + 
-                    startTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                    DateTimeUtil.formatDateTime(startTime) + 
                     ")到结束时间(" + 
-                    endTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + 
+                    DateTimeUtil.formatDateTime(endTime) + 
                     ")不能超过24小时");
             }
         }
@@ -1323,12 +1324,12 @@ public class CourseServiceImpl implements CourseService {
         LocalDateTime now = LocalDateTime.now();
         if (checkinTask.getCheckinStartTime() != null && now.isBefore(checkinTask.getCheckinStartTime())) {
             throw new BusinessException("签到未开始：请在" + 
-                checkinTask.getCheckinStartTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "之后再尝试签到");
+                DateTimeUtil.formatDateTime(checkinTask.getCheckinStartTime()) + "之后再尝试签到");
         }
         
         if (checkinTask.getCheckinEndTime() != null && now.isAfter(checkinTask.getCheckinEndTime())) {
             throw new BusinessException("签到已截止：签到时间已于" + 
-                checkinTask.getCheckinEndTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "结束，请联系教师处理");
+                DateTimeUtil.formatDateTime(checkinTask.getCheckinEndTime()) + "结束，请联系教师处理");
         }
         
         // 获取当前用户

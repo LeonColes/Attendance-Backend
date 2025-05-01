@@ -44,12 +44,14 @@ public class CreateCourseRequest {
      * 课程开始日期
      */
     @DateTimeFormat(pattern = "yyyy-MM-dd")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate startDate;
     
     /**
      * 课程结束日期
      */
     @DateTimeFormat(pattern = "yyyy-MM-dd")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate endDate;
     
     // === 以下字段仅在type=CHECKIN时使用 ===

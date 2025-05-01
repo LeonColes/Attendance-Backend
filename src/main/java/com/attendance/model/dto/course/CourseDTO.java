@@ -1,5 +1,6 @@
 package com.attendance.model.dto.course;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -55,11 +56,13 @@ public class CourseDTO {
     /**
      * 开始日期 (课程类型)
      */
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate startDate;
     
     /**
      * 结束日期 (课程类型)
      */
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate endDate;
     
     /**
@@ -80,13 +83,13 @@ public class CourseDTO {
     /**
      * 签到开始时间 (仅签到任务类型有效)
      */
-    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime checkinStartTime;
     
     /**
      * 签到结束时间 (仅签到任务类型有效)
      */
-    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime checkinEndTime;
     
     /**
@@ -119,12 +122,12 @@ public class CourseDTO {
     /**
      * 创建时间
      */
-    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
     
     /**
      * 更新时间
      */
-    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updatedAt;
 }

@@ -1,5 +1,6 @@
 package com.attendance.common.config.security;
 
+import com.attendance.common.util.DateTimeUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.security.Key;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -72,7 +75,8 @@ public class JwtTokenProvider {
      */
     private Boolean isTokenExpired(String token) {
         final Date expiration = getExpirationDateFromToken(token);
-        return expiration.before(new Date());
+        LocalDateTime expirationDateTime = DateTimeUtil.toLocalDateTime(expiration);
+        return expirationDateTime.isBefore(LocalDateTime.now());
     }
     
     /**
@@ -102,14 +106,14 @@ public class JwtTokenProvider {
      * 生成令牌的核心方法
      */
     private String doGenerateToken(Map<String, Object> claims, String subject) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpiration);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiryDate = now.plus(Duration.ofMillis(jwtExpiration));
         
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
+                .setIssuedAt(DateTimeUtil.toDate(now))
+                .setExpiration(DateTimeUtil.toDate(expiryDate))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS512)
                 .compact();
     }
