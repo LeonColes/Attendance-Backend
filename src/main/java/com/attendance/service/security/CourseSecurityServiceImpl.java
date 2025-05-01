@@ -40,17 +40,27 @@ public class CourseSecurityServiceImpl implements CourseSecurityService {
             return false;
         }
 
+        // 1. 检查用户是否为管理员，管理员有所有权限
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (isAdmin) {
+            log.debug("用户是管理员，自动拥有课程创建者权限");
+            return true;
+        }
+
         String username = authentication.getName();
         log.debug("检查用户 [{}] 是否为课程 [{}] 的创建者", username, courseId);
 
-        // 获取课程信息
+        // 2. 获取课程信息
         Optional<Course> courseOpt = courseRepository.findById(courseId);
         if (!courseOpt.isPresent()) {
             log.debug("课程 [{}] 不存在", courseId);
             return false;
         }
-
-        // 如果是创建者，直接返回true
+        
+        Course course = courseOpt.get();
+        
+        // 3. 查询用户在课程中的关联信息
         Optional<CourseUser> courseUserOpt = courseUserRepository.findByCourseIdAndUsername(courseId, username);
         if (courseUserOpt.isPresent() && courseUserOpt.get().isCreator()) {
             log.debug("用户 [{}] 是课程 [{}] 的创建者", username, courseId);
@@ -78,10 +88,18 @@ public class CourseSecurityServiceImpl implements CourseSecurityService {
             return false;
         }
 
+        // 1. 检查用户是否为管理员，管理员有所有权限
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (isAdmin) {
+            log.debug("用户是管理员，自动拥有签到任务创建者权限");
+            return true;
+        }
+
         String username = authentication.getName();
         log.debug("检查用户 [{}] 是否为签到任务 [{}] 的创建者", username, checkinId);
 
-        // 获取签到任务信息
+        // 2. 获取签到任务信息
         Optional<Course> checkinOpt = courseRepository.findById(checkinId);
         if (!checkinOpt.isPresent()) {
             log.debug("签到任务 [{}] 不存在", checkinId);
@@ -90,7 +108,7 @@ public class CourseSecurityServiceImpl implements CourseSecurityService {
 
         Course checkin = checkinOpt.get();
         
-        // 如果是签到任务创建者，直接返回true
+        // 3. 查询用户在课程中的关联信息
         Optional<CourseUser> courseUserOpt = courseUserRepository.findByCourseIdAndUsername(checkin.getParentCourseId(), username);
         if (courseUserOpt.isPresent() && courseUserOpt.get().isCreator()) {
             log.debug("用户 [{}] 是签到任务 [{}] 的创建者", username, checkinId);

@@ -113,7 +113,7 @@ public class CourseServiceImpl implements CourseService {
     
     @Override
     public List<CourseDTO> getAllCourses() {
-        List<Course> courses = courseRepository.findByType(SystemConstants.CourseType.COURSE);
+        List<Course> courses = courseRepository.findByTypeAndActive(SystemConstants.CourseType.COURSE, true);
         
         // 检查并更新课程状态
         courses.forEach(this::checkAndUpdateCourseStatus);
@@ -149,8 +149,9 @@ public class CourseServiceImpl implements CourseService {
         
         // 教师只能看到自己创建的课程
         if (isTeacher) {
-            courses = courseRepository.findByCreatorIdAndType(
-                currentUser.getId(), SystemConstants.CourseType.COURSE);
+            courses = courseRepository.findByCreatorIdAndTypeAndActive(
+                currentUser.getId(), SystemConstants.CourseType.COURSE, true);
+            log.debug("教师用户[{}]查询创建的课程: 找到{}个", username, courses.size());
         } 
         // 学生只能看到自己加入的课程
         else if (isStudent) {
@@ -160,14 +161,19 @@ public class CourseServiceImpl implements CourseService {
                 .collect(Collectors.toList());
             
             if (!joinedCourseIds.isEmpty()) {
+                // 从所有已加入课程ID中筛选出类型为COURSE且active=true的课程
                 courses = courseRepository.findAllById(joinedCourseIds).stream()
-                    .filter(course -> SystemConstants.CourseType.COURSE.equals(course.getType()))
+                    .filter(course -> 
+                        SystemConstants.CourseType.COURSE.equals(course.getType()) && 
+                        course.getActive())
                     .collect(Collectors.toList());
+                log.debug("学生用户[{}]查询加入的课程: 找到{}个", username, courses.size());
             }
         }
         // 管理员可以看到所有课程
         else {
-            courses = courseRepository.findByType(SystemConstants.CourseType.COURSE);
+            courses = courseRepository.findByTypeAndActive(SystemConstants.CourseType.COURSE, true);
+            log.debug("管理员用户[{}]查询所有课程: 找到{}个", username, courses.size());
         }
         
         // 检查并更新课程状态
@@ -207,8 +213,8 @@ public class CourseServiceImpl implements CourseService {
         
         // 教师只能看到自己创建的课程
         if (isTeacher) {
-            coursePageResult = courseRepository.findByCreatorIdAndType(
-                currentUser.getId(), SystemConstants.CourseType.COURSE, pageable);
+            coursePageResult = courseRepository.findByCreatorIdAndTypeAndActive(
+                currentUser.getId(), SystemConstants.CourseType.COURSE, true, pageable);
         } 
         // 学生只能看到自己加入的活跃课程
         else if (isStudent) {
@@ -219,8 +225,8 @@ public class CourseServiceImpl implements CourseService {
             
             if (!joinedCourseIds.isEmpty()) {
                 // 这里由于没有直接的分页方法，先获取指定ID的所有课程，然后手动分页
-                Page<Course> allMatchingCourses = courseRepository.findByTypeAndIdIn(
-                    SystemConstants.CourseType.COURSE, joinedCourseIds, pageable);
+                Page<Course> allMatchingCourses = courseRepository.findByTypeAndIdInAndActive(
+                    SystemConstants.CourseType.COURSE, joinedCourseIds, true, pageable);
                 coursePageResult = allMatchingCourses;
             } else {
                 // 如果学生没有加入任何课程，返回空分页结果
@@ -229,7 +235,7 @@ public class CourseServiceImpl implements CourseService {
         }
         // 管理员可以看到所有课程
         else {
-            coursePageResult = courseRepository.findByType(SystemConstants.CourseType.COURSE, pageable);
+            coursePageResult = courseRepository.findByTypeAndActive(SystemConstants.CourseType.COURSE, true, pageable);
         }
         
         // 将课程列表转换为DTO
@@ -1140,9 +1146,11 @@ public class CourseServiceImpl implements CourseService {
         // 创建分页请求，按创建时间降序排序
         Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createdAt").descending());
         
-        // 获取课程下的所有签到任务
-        Page<Course> checkinTasksPage = courseRepository.findByParentCourseIdAndType(
-            courseId, SystemConstants.CourseType.CHECKIN, pageable);
+        // 获取课程下的所有活跃签到任务（未被删除的）
+        Page<Course> checkinTasksPage = courseRepository.findByParentCourseIdAndTypeAndActive(
+            courseId, SystemConstants.CourseType.CHECKIN, true, pageable);
+        
+        log.debug("获取课程[{}]签到任务列表，过滤条件active=true，找到{}个任务", courseId, checkinTasksPage.getContent().size());
             
         // 当前时间，用于判断签到状态
         LocalDateTime now = LocalDateTime.now();
@@ -1725,9 +1733,14 @@ public class CourseServiceImpl implements CourseService {
             throw new BusinessException("只能删除课程，不能删除签到任务");
         }
         
+        // 检查课程是否已经被删除
+        if (!course.getActive()) {
+            throw new BusinessException("课程已被删除，无需重复操作");
+        }
+        
         try {
             // 1. 逻辑删除课程下的所有签到任务
-            List<Course> checkinTasks = courseRepository.findByParentCourseId(courseId);
+            List<Course> checkinTasks = courseRepository.findByParentCourseIdAndActive(courseId, true);
             for (Course checkinTask : checkinTasks) {
                 checkinTask.setActive(false);
                 checkinTask.setStatus(SystemConstants.CourseStatus.DELETED);
@@ -1771,14 +1784,23 @@ public class CourseServiceImpl implements CourseService {
         Course checkinTask = courseRepository.findById(checkinId)
             .orElseThrow(() -> new BusinessException("签到任务不存在"));
         
-        // 验证权限：只有签到任务创建者和管理员可以删除签到任务
-        if (!checkinTask.getCreatorId().equals(currentUser.getId()) && !isAdmin(authentication)) {
+        // 验证任务类型必须是CHECKIN
+        if (!SystemConstants.CourseType.CHECKIN.equals(checkinTask.getType())) {
+            throw new BusinessException("只能删除签到任务，不能删除课程");
+        }
+        
+        // 获取父课程
+        Course parentCourse = courseRepository.findById(checkinTask.getParentCourseId())
+            .orElseThrow(() -> new BusinessException("所属课程不存在"));
+        
+        // 验证权限：只有课程创建者和管理员可以删除签到任务
+        if (!parentCourse.getCreatorId().equals(currentUser.getId()) && !isAdmin(authentication)) {
             throw new BusinessException("您没有权限删除该签到任务");
         }
         
-        // 验证类型必须是CHECKIN
-        if (!SystemConstants.CourseType.CHECKIN.equals(checkinTask.getType())) {
-            throw new BusinessException("只能删除签到任务，不能删除课程");
+        // 检查签到任务是否已经被删除
+        if (!checkinTask.getActive()) {
+            throw new BusinessException("签到任务已被删除，无需重复操作");
         }
         
         try {
@@ -1791,7 +1813,7 @@ public class CourseServiceImpl implements CourseService {
             
             // 2. 逻辑删除签到任务
             checkinTask.setActive(false);
-            checkinTask.setStatus(SystemConstants.CourseStatus.DELETED);
+            checkinTask.setStatus(SystemConstants.TaskStatus.DELETED);
             courseRepository.save(checkinTask);
             
             log.info("成功删除签到任务(逻辑删除): ID={}, 名称={}, 创建者={}", checkinId, checkinTask.getName(), username);

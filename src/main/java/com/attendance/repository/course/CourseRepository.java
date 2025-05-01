@@ -34,6 +34,16 @@ public interface CourseRepository extends JpaRepository<Course, String> {
     List<Course> findByCreatorIdAndType(String creatorId, String type);
     
     /**
+     * 根据创建者ID和类型查找活跃课程（未删除的）
+     * 
+     * @param creatorId 创建者ID
+     * @param type 类型 (COURSE/CHECKIN)
+     * @param active 是否活跃
+     * @return 课程/任务列表
+     */
+    List<Course> findByCreatorIdAndTypeAndActive(String creatorId, String type, Boolean active);
+    
+    /**
      * 根据邀请码查找课程
      * 
      * @param code 邀请码
@@ -48,6 +58,15 @@ public interface CourseRepository extends JpaRepository<Course, String> {
      * @return 课程列表
      */
     List<Course> findByType(String type);
+    
+    /**
+     * 查找所有活跃的普通课程（未删除的）
+     * 
+     * @param type 类型 (COURSE)
+     * @param active 是否活跃
+     * @return 课程列表
+     */
+    List<Course> findByTypeAndActive(String type, Boolean active);
     
     /**
      * 根据类型和状态查找
@@ -74,6 +93,15 @@ public interface CourseRepository extends JpaRepository<Course, String> {
      * @return 签到任务列表
      */
     List<Course> findByParentCourseId(String parentCourseId);
+    
+    /**
+     * 查找特定课程下的所有活跃签到任务（未删除的）
+     * 
+     * @param parentCourseId 父课程ID
+     * @param active 是否活跃
+     * @return 签到任务列表
+     */
+    List<Course> findByParentCourseIdAndActive(String parentCourseId, Boolean active);
     
     /**
      * 查找特定课程下的所有指定类型的签到任务
@@ -144,6 +172,17 @@ public interface CourseRepository extends JpaRepository<Course, String> {
     Page<Course> findByCreatorIdAndType(String creatorId, String type, Pageable pageable);
     
     /**
+     * 根据创建者ID、类型和活跃状态查找（带分页）
+     * 
+     * @param creatorId 创建者ID
+     * @param type 类型 (COURSE/CHECKIN)
+     * @param active 是否活跃（未删除）
+     * @param pageable 分页参数
+     * @return 课程/任务分页列表
+     */
+    Page<Course> findByCreatorIdAndTypeAndActive(String creatorId, String type, Boolean active, Pageable pageable);
+    
+    /**
      * 根据类型查找（带分页）
      * 
      * @param type 类型 (COURSE/CHECKIN)
@@ -151,6 +190,16 @@ public interface CourseRepository extends JpaRepository<Course, String> {
      * @return 课程/任务分页列表
      */
     Page<Course> findByType(String type, Pageable pageable);
+    
+    /**
+     * 根据类型和活跃状态查找（带分页）
+     * 
+     * @param type 类型 (COURSE/CHECKIN)
+     * @param active 是否活跃（未删除）
+     * @param pageable 分页参数
+     * @return 课程/任务分页列表
+     */
+    Page<Course> findByTypeAndActive(String type, Boolean active, Pageable pageable);
     
     /**
      * 根据类型和ID列表查找（带分页）
@@ -161,6 +210,17 @@ public interface CourseRepository extends JpaRepository<Course, String> {
      * @return 课程/任务分页列表
      */
     Page<Course> findByTypeAndIdIn(String type, List<String> ids, Pageable pageable);
+    
+    /**
+     * 根据类型、ID列表和活跃状态查找（带分页）
+     * 
+     * @param type 类型 (COURSE/CHECKIN)
+     * @param ids ID列表
+     * @param active 是否活跃（未删除）
+     * @param pageable 分页参数
+     * @return 课程/任务分页列表
+     */
+    Page<Course> findByTypeAndIdInAndActive(String type, List<String> ids, Boolean active, Pageable pageable);
 
     /**
      * 查找特定课程下的所有签到任务（带分页）
@@ -171,4 +231,15 @@ public interface CourseRepository extends JpaRepository<Course, String> {
      * @return 签到任务分页列表
      */
     Page<Course> findByParentCourseIdAndType(String parentCourseId, String type, Pageable pageable);
+    
+    /**
+     * 查找特定课程下的所有活跃签到任务（带分页）
+     * 
+     * @param parentCourseId 父课程ID
+     * @param type 类型 (CHECKIN)
+     * @param active 是否活跃（未删除）
+     * @param pageable 分页参数
+     * @return 签到任务分页列表
+     */
+    Page<Course> findByParentCourseIdAndTypeAndActive(String parentCourseId, String type, Boolean active, Pageable pageable);
 } 

@@ -68,6 +68,11 @@ public final class SystemConstants {
          */
         public static final String CANCELED = "CANCELED";
         
+        /**
+         * 已删除（逻辑删除）
+         */
+        public static final String DELETED = "DELETED";
+        
         // 私有构造函数，防止实例化
         private TaskStatus() {}
 
@@ -80,7 +85,9 @@ public final class SystemConstants {
             return CREATED.equals(status) || 
                    ACTIVE.equals(status) || 
                    ENDED.equals(status) || 
-                   CANCELED.equals(status);
+                   CANCELED.equals(status) ||
+                   COMPLETED.equals(status) ||
+                   DELETED.equals(status);
         }
     }
     
