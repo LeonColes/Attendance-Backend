@@ -160,6 +160,20 @@ public interface CourseRepository extends JpaRepository<Course, String> {
             LocalDateTime now, 
             String type,
             String status);
+            
+    /**
+     * 查找需要自动激活的签到任务
+     * (开始时间早于当前时间，状态为CREATED)
+     * 
+     * @param now 当前时间
+     * @param type CHECKIN类型
+     * @param status CREATED状态
+     * @return 需要激活的签到任务
+     */
+    List<Course> findByCheckinStartTimeBeforeAndTypeAndStatus(
+            LocalDateTime now, 
+            String type,
+            String status);
 
     /**
      * 根据创建者ID和类型查找（带分页）
