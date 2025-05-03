@@ -1410,13 +1410,35 @@ public class CourseServiceImpl implements CourseService {
         if (SystemConstants.CheckInType.QR_CODE.equals(verifyMethod)) {
             // 二维码签到 - 需要处理带有时间戳的二维码内容
             if (verifyData != null && !verifyData.isEmpty()) {
-                // 如果二维码内容包含时间戳（格式：checkinId:timestamp），提取courseId部分
+                // 检查二维码内容是否包含时间戳（格式：checkinId:timestamp）
                 if (verifyData.contains(":")) {
-                    String extractedCourseId = verifyData.split(":")[0];
+                    String[] parts = verifyData.split(":");
+                    String extractedCourseId = parts[0];
+                    
                     // 验证提取的courseId是否匹配
                     if (!courseId.equals(extractedCourseId)) {
-                throw new BusinessException("二维码验证失败：扫描的二维码数据无效，请确认您扫描了正确的签到二维码");
-            }
+                        throw new BusinessException("二维码验证失败：扫描的二维码数据无效，请确认您扫描了正确的签到二维码");
+                    }
+                    
+                    // 验证时间戳的有效性（只有最近生成的二维码才有效）
+                    try {
+                        long qrCodeTimeBlock = Long.parseLong(parts[1]);
+                        long currentTimeBlock = System.currentTimeMillis() / 5000;
+                        long timeDiff = Math.abs(currentTimeBlock - qrCodeTimeBlock);
+                        
+                        // 允许的最大时间差（3个时间块 = 15秒）
+                        int maxAllowedTimeDiff = 3;
+                        
+                        if (timeDiff > maxAllowedTimeDiff) {
+                            throw new BusinessException("二维码已过期：请使用最新的二维码进行签到");
+                        }
+                        
+                        log.debug("二维码时间戳验证通过: 二维码时间块={}, 当前时间块={}, 时间差={}个块", 
+                                qrCodeTimeBlock, currentTimeBlock, timeDiff);
+                    } catch (NumberFormatException e) {
+                        log.warn("二维码时间戳格式错误: {}", parts[1]);
+                        throw new BusinessException("二维码格式错误：无效的时间戳");
+                    }
                 } else if (!courseId.equals(verifyData)) {
                     // 兼容旧版二维码（不包含时间戳）
                     throw new BusinessException("二维码验证失败：扫描的二维码数据无效，请确认您扫描了正确的签到二维码");
