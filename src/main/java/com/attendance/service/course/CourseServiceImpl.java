@@ -639,8 +639,16 @@ public class CourseServiceImpl implements CourseService {
             .orElseThrow(() -> new BusinessException("用户不存在"));
         
         // 将二维码解析为课程ID
-        // 注：实际应用中可能需要更复杂的解析和验证逻辑
-        String courseId = qrCode;
+        // 处理带有时间戳的二维码内容 (格式：courseId:timestamp)
+        String courseId;
+        if (qrCode.contains(":")) {
+            // 从带时间戳的二维码中提取课程ID
+            courseId = qrCode.split(":")[0];
+            log.debug("从带时间戳二维码中提取课程ID: {}", courseId);
+        } else {
+            // 兼容旧版二维码格式
+            courseId = qrCode;
+        }
         
         // 查找课程
         Course course = courseRepository.findById(courseId)
@@ -1400,11 +1408,21 @@ public class CourseServiceImpl implements CourseService {
         
         // 处理不同签到方式的验证逻辑
         if (SystemConstants.CheckInType.QR_CODE.equals(verifyMethod)) {
-            // 二维码签到 - 如果提供了verifyData，则验证是否与checkinId匹配
-            if (verifyData != null && !verifyData.isEmpty() && !courseId.equals(verifyData)) {
+            // 二维码签到 - 需要处理带有时间戳的二维码内容
+            if (verifyData != null && !verifyData.isEmpty()) {
+                // 如果二维码内容包含时间戳（格式：checkinId:timestamp），提取courseId部分
+                if (verifyData.contains(":")) {
+                    String extractedCourseId = verifyData.split(":")[0];
+                    // 验证提取的courseId是否匹配
+                    if (!courseId.equals(extractedCourseId)) {
                 throw new BusinessException("二维码验证失败：扫描的二维码数据无效，请确认您扫描了正确的签到二维码");
             }
-            // 如果未提供verifyData，使用checkinId作为默认值（与二维码生成逻辑一致）
+                } else if (!courseId.equals(verifyData)) {
+                    // 兼容旧版二维码（不包含时间戳）
+                    throw new BusinessException("二维码验证失败：扫描的二维码数据无效，请确认您扫描了正确的签到二维码");
+                }
+            }
+            // 如果未提供verifyData，使用courseId作为默认值（与二维码生成逻辑一致）
             if (verifyData == null || verifyData.isEmpty()) {
                 verifyData = courseId;
             }

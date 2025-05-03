@@ -278,8 +278,12 @@ public class CourseController {
                 throw new BusinessException("签到任务不存在");
             }
             
-            // 获取签到码 - 直接使用任务ID
-            String checkinContent = checkinId;
+            // 获取签到码 - 使用任务ID和时间戳，实现5秒刷新
+            // 计算5秒时间区块 (Unix时间戳/5000)，确保每5秒生成一个新的二维码
+            long timeBlock = System.currentTimeMillis() / 5000;
+            String checkinContent = checkinId + ":" + timeBlock;
+            
+            log.debug("生成带时间戳的签到二维码内容: {}", checkinContent);
             
             // 创建二维码
             QRCodeWriter qrCodeWriter = new QRCodeWriter();
