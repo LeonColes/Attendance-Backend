@@ -1351,6 +1351,24 @@ public class CourseServiceImpl implements CourseService {
     
     @Override
     public CourseRecordDTO submitCheckIn(String courseId, String verifyMethod, String location, String device, String verifyData) {
+        // 检查是否是二维码扫描格式（可能包含时间戳）
+        if (SystemConstants.CheckInType.QR_CODE.equals(verifyMethod) && courseId != null && courseId.contains(":")) {
+            log.info("检测到二维码格式的签到ID: {}", courseId);
+            // 分离实际的签到任务ID和时间戳
+            String[] parts = courseId.split(":");
+            if (parts.length >= 2) {
+                String originalId = courseId;
+                courseId = parts[0];
+                log.info("从二维码内容中提取签到任务ID: {} -> {}", originalId, courseId);
+                
+                // 如果verifyData为空，则使用完整的二维码内容作为验证数据
+                if (verifyData == null || verifyData.isEmpty()) {
+                    verifyData = originalId;
+                    log.debug("设置verifyData为原始二维码内容: {}", verifyData);
+                }
+            }
+        }
+        
         // 验证签到任务是否存在
         Course checkinTask = courseRepository.findById(courseId)
             .orElseThrow(() -> new BusinessException("签到任务不存在：请检查签到任务ID是否正确"));
