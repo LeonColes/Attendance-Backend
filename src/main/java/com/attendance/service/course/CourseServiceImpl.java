@@ -23,6 +23,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -1453,7 +1456,79 @@ public class CourseServiceImpl implements CourseService {
             if (location == null || location.isEmpty()) {
                 throw new BusinessException("位置签到失败：位置信息缺失，请允许应用获取您的位置信息后重试");
             }
-            // 可以在这里添加位置验证逻辑，例如检查是否在课堂附近
+            
+            // 获取签到任务的验证参数
+            String verifyParams = checkinTask.getVerifyParams();
+            if (verifyParams == null || verifyParams.isEmpty()) {
+                throw new BusinessException("位置签到失败：教师未设置位置签到参数");
+            }
+            
+            try {
+                // 解析JSON格式的verifyParams
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode paramsNode = objectMapper.readTree(verifyParams);
+                
+                // 获取教师设置的经纬度和半径
+                double targetLat = paramsNode.path("latitude").asDouble();
+                double targetLng = paramsNode.path("longitude").asDouble();
+                double radius = paramsNode.path("radius").asDouble();
+                
+                if (targetLat == 0 || targetLng == 0 || radius == 0) {
+                    log.warn("位置签到参数不完整: {}", verifyParams);
+                    throw new BusinessException("位置签到失败：位置签到参数配置不正确");
+                }
+                
+                // 解析学生提交的位置
+                try {
+                    // 直接在这里解析位置字符串 (格式可能为: "纬度,经度" 或 "纬度,经度,地址文本")
+                    double studentLat;
+                    double studentLng;
+                    
+                    if (location == null || location.isEmpty() || !location.contains(",")) {
+                        throw new BusinessException("位置签到失败：无效的位置坐标格式 " + location);
+                    }
+                    
+                    log.debug("解析位置坐标: {}", location);
+                    
+                    // 分割坐标字符串，只取前两个值作为纬度和经度
+                    String[] parts = location.split(",");
+                    if (parts.length < 2) {
+                        throw new BusinessException("位置签到失败：无效的位置坐标格式，应包含'纬度,经度': " + location);
+                    }
+                    
+                    try {
+                        studentLat = Double.parseDouble(parts[0].trim());
+                        studentLng = Double.parseDouble(parts[1].trim());
+                        
+                        // 记录解析后的坐标值
+                        log.debug("解析得到纬度={}, 经度={}", studentLat, studentLng);
+                    } catch (NumberFormatException e) {
+                        log.error("解析坐标值失败: {}", e.getMessage());
+                        throw new BusinessException("位置签到失败：无效的坐标值: " + parts[0] + "," + parts[1]);
+                    }
+                    
+                    // 直接计算两点之间的距离
+                    double distance = calculateDistance(targetLat, targetLng, studentLat, studentLng);
+                    
+                    log.info("位置签到距离计算: 目标位置=({}, {}), 学生位置=({}, {}), 距离={}米, 允许范围={}米",
+                            targetLat, targetLng, studentLat, studentLng, distance, radius);
+                    
+                    // 检查距离是否在允许范围内
+                    if (distance > radius) {
+                        throw new BusinessException(String.format(
+                                "位置签到失败：您当前位置距离签到地点太远（%.2f米），超出了允许范围（%.2f米）", 
+                                distance, radius));
+                    }
+                } catch (BusinessException e) {
+                    throw e;
+                } catch (Exception e) {
+                    log.error("位置验证异常: {}", e.getMessage(), e);
+                    throw new BusinessException("位置签到失败：" + e.getMessage());
+                }
+            } catch (JsonProcessingException e) {
+                log.error("解析位置签到参数失败", e);
+                throw new BusinessException("位置签到失败：系统无法解析位置信息");
+            }
         } else if (SystemConstants.CheckInType.WIFI.equals(verifyMethod)) {
             // WIFI签到逻辑
             if (verifyData == null || verifyData.isEmpty()) {
@@ -1889,5 +1964,40 @@ public class CourseServiceImpl implements CourseService {
             .orElse(null);
         
         return convertToDTO(updatedCourse, creator);
+    }
+
+    /**
+     * 计算两个坐标点之间的距离（米）
+     * 
+     * @param lat1 第一个点的纬度
+     * @param lng1 第一个点的经度
+     * @param lat2 第二个点的纬度
+     * @param lng2 第二个点的经度
+     * @return 两点之间的距离（米）
+     */
+    private double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+        // 地球半径（米）
+        final double EARTH_RADIUS = 6371000;
+        
+        // 转换为弧度
+        double radLat1 = Math.toRadians(lat1);
+        double radLng1 = Math.toRadians(lng1);
+        double radLat2 = Math.toRadians(lat2);
+        double radLng2 = Math.toRadians(lng2);
+        
+        // 计算差值
+        double deltaLat = radLat1 - radLat2;
+        double deltaLng = radLng1 - radLng2;
+        
+        // Haversine公式计算球面距离
+        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+                   Math.cos(radLat1) * Math.cos(radLat2) *
+                   Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        double distance = EARTH_RADIUS * c;
+        
+        log.debug("计算距离: ({}, {}) 到 ({}, {}) = {}米", lat1, lng1, lat2, lng2, distance);
+        
+        return distance;
     }
 } 
